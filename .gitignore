@@ -1,0 +1,18 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Python package/build artifacts
+*.egg-info/
+build/
+dist/
+
+# Test artifacts
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter temporary files
+.ipynb_checkpoints/
