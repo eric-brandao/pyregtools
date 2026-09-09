@@ -12,6 +12,8 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "scikit-learn",
+    "cvxpy",
 ]
 
 [tool.setuptools.packages.find]
