@@ -74,8 +74,9 @@ def tikhonov_analytic(h_mtx,bm,lambd_value):
         x_lambda : numpy 1darray
             estimated solution to inverse problem
     """
-    Hm = np.matrix(h_mtx)
-    x_lambda = Hm.getH() @ np.linalg.inv(Hm @ Hm.getH() +\
+    #Hm = np.matrix(h_mtx)
+    h_mtx_H = h_mtx.conj().T
+    x_lambda = h_mtx_H @ np.linalg.inv(h_mtx @ h_mtx_H +\
                                          (lambd_value**2)*np.identity(len(bm))) @ bm
     return x_lambda
 
@@ -98,7 +99,7 @@ def sklearn_ridge(h_mtx,bm,lambd_value):
             estimated solution to inverse problem
     """
     # Form a real H2 matrix and p2 measurement   
-    np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+    #warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
     regressor = Ridge(alpha=lambd_value, fit_intercept = False, solver = 'svd')
     x_lambda = regressor.fit(h_mtx, bm).coef_
     return x_lambda
@@ -123,7 +124,7 @@ def sklearn_ridge_c(h_mtx,bm,lambd_value):
             estimated solution to inverse problem
     """
     # Form a real H2 matrix and p2 measurement   
-    np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+    warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
     H2 = np.vstack((np.hstack((h_mtx.real, -h_mtx.imag)),
         np.hstack((h_mtx.imag, h_mtx.real))))
     p2 = np.vstack((bm.real,bm.imag)).flatten()
