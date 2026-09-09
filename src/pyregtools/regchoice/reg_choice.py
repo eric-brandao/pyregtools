@@ -86,7 +86,7 @@ def get_regpar(s_valid, npoints = 200, smin_ratio = 16 * np.finfo(float).eps):
     """
     last_val = max(s_valid[-1], s_valid[0] * smin_ratio)
     reg_par_grid = np.geomspace(s_valid[0], last_val, npoints)
-    return reg_par_grid#[reg_par_grid > 1e-6]
+    return reg_par_grid
 
 def get_regpar_old(s_valid, npoints = 200):
     """ Get the initial search grid for the regularization parameter
