@@ -3,6 +3,8 @@ from scipy.io import loadmat
 from pyregtools.regchoice import csvd, l_curve_new, gcv_lambda, discrep, ncp
 from pyregtools.regsolvers import tikhonov, tikhonov_analytic, sklearn_ridge, sklearn_ridge_c
 from pyregtools.regsolvers import cvx_reg, tsvd, ssvd, cvx_constrained
+from pyregtools.utils import nmse
+import matplotlib.pyplot as plt
 
 def import_mat_data():
     """ import reference data from matlab and return relevant data
@@ -68,7 +70,8 @@ def test_tikhonov():
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     U, s, V = csvd(A)
     x_tik_py = tikhonov(U, s, V, b_noisy, labda)
-    assert np.allclose(x_tik_py, x_tik, rtol=1e-6)
+    nmse = np.linalg.norm(x_tik_py-x_tik)/np.linalg.norm(x_tik)
+    assert np.allclose(x_tik_py, x_tik, rtol=1e-6, atol=1e-8)
 
 def test_tikhonov_analytic():
     """ Test tikhonov analytic function
@@ -76,29 +79,49 @@ def test_tikhonov_analytic():
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = tikhonov_analytic(A, b_noisy, labda)
-    assert np.allclose(x_tik_py, x_tik, rtol=1e-6)
+    assert np.allclose(x_tik_py, x_tik, rtol=1e-6, atol=1e-8)
 
-def t_sklearn_ridge():
+def test_sklearn_ridge():
     """ Test sklearn_ridge function
     """
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = sklearn_ridge(A, b_noisy, labda)
-    assert np.allclose(x_tik_py, x_tik, rtol=1e-6)
+    assert nmse(x_tik_py, x_tik) < 0.05
 
-def t_tikhonov_cvx():
-    """ Test tikhonov cvx function
+def test_sklearn_ridge_c():
+    """ Test sklearn_ridge_c function
+    """
+    x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
+        x_tik, x_k, labda, num_svd_comp  = import_mat_data()
+    x_tik_py = sklearn_ridge_c(A, b_noisy, labda)
+    assert nmse(x_tik_py, x_tik) < 0.05
+
+def test_tikhonov_cvx():
+    """ Test tikhonov cvx function. 
+
+    Test is done via nmse, since the solver is not as good as ref. tikhonov.
     """
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = cvx_reg(A, b, labda, is_lasso = False, is_complex = False)
-    assert np.allclose(x_tik_py, x_tik, rtol=1e-6)
+    assert nmse(x_tik_py, x_tik) < 0.05
 
 def test_tsvd():
-    """ Test tikhonov function
+    """ Test TSVD function
     """
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     U, s, V = csvd(A)
     x_k_py = tsvd(U, s, V, b_noisy , num_svd_comp)
-    assert np.allclose(x_k_py, x_k, rtol=1e-6)
+    assert np.allclose(x_k_py, x_k, rtol=1e-6, atol=1e-8)
+
+def test_ssvd():
+    """ Test SSVD function
+    """
+    x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
+        x_tik, x_k, labda, num_svd_comp  = import_mat_data()
+    U, s, V = csvd(A)
+    x_s_py = ssvd(U, s, V, b_noisy , np.linalg.norm(n))
+    assert np.allclose(x_s_py, x_k, rtol=1e-6, atol=1e-8)
+

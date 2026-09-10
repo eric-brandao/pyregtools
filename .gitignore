@@ -17,5 +17,8 @@ venv/
 # Jupyter temporary files
 .ipynb_checkpoints/
 
+# VS Code
+.vscode/
+
 # matlab asv
 *.asv

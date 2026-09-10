@@ -124,7 +124,7 @@ def sklearn_ridge_c(h_mtx,bm,lambd_value):
             estimated solution to inverse problem
     """
     # Form a real H2 matrix and p2 measurement   
-    warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+    #warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
     H2 = np.vstack((np.hstack((h_mtx.real, -h_mtx.imag)),
         np.hstack((h_mtx.imag, h_mtx.real))))
     p2 = np.vstack((bm.real,bm.imag)).flatten()
@@ -159,9 +159,9 @@ def cvx_reg(A, b, lam, is_lasso = False, is_complex = False):
         x.value : numpy 1darray
             estimated solution to inverse problem
     """
-    if lambd_value < 0:
+    if lam < 0:
         warnings.warn("Illegal regularization parameter lambda. I'll set it to 1.0")
-        lambd_value = 1.0
+        lam = 1.0
     if is_lasso:
         l_norm = 1
     else:

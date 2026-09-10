@@ -1,5 +1,8 @@
 import numpy as np
 from pyregtools.regchoice import csvd, gram_matrix
+from pyregtools.utils import nmse, mae
+from pyregtools.regsolvers import tikhonov, tikhonov_analytic, least_sq
+
 
 def test_svd_singular_values():
     """ Test csvd for a simple case
@@ -43,3 +46,31 @@ def test_gram_mtx_zero_column():
     G_expected = np.array([[1, 0],[0, 0]], dtype=complex)
     G, cohe = gram_matrix(A)
     assert np.allclose(G, G_expected)
+
+def test_error_metrics():
+    """ Test normalized mean square error function
+    """
+    np.random.seed(0)
+    x = np.random.normal(loc = 0, scale = 1, size = 100)
+    nmse(x, x) == 0 and mae(x, x) == 0
+
+def test_equiv_form():
+    """ Test Tikhonov solvers when lambda = 0 against least-squares.
+    """
+    # create random problem
+    np.random.seed(0)
+    A = np.random.normal(loc = 0, scale = 1, size = (10,10))
+    x = np.random.normal(loc = 0, scale = 1, size = 10)
+    b = A @ x
+    # least squares solution
+    x_lsq = least_sq(A, b)
+    # Analytic Tikhonov 
+    x_tik_ana = tikhonov_analytic(A, b, 0)
+    # SVD Tikhonov 
+    U, s, V = csvd(A)
+    x_tik_svd = tikhonov(U, s, V, b, 0)
+    assert np.allclose(x_lsq, x_tik_ana, rtol=1e-6, atol=1e-8) and\
+        np.allclose(x_lsq, x_tik_svd, rtol=1e-6, atol=1e-8)
+
+
+
