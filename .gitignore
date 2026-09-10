@@ -20,5 +20,8 @@ venv/
 # VS Code
 .vscode/
 
+# Sphinx build artifacts
+docs/_build/
+
 # matlab asv
 *.asv
