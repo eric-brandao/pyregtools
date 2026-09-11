@@ -1,0 +1,29 @@
+/* Highlight complete Python API signatures */
+dt.sig.sig-object.py {
+    background: #e7f2fa !important;
+    border-top: 3px solid #6ab0de !important;
+    padding: 6px 8px !important;
+
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+
+    margin-left: 0 !important;
+    text-indent: 0 !important;
+}
+
+/* Keep all parts of the signature in normal inline flow */
+dt.sig.sig-object.py > .sig-prename,
+dt.sig.sig-object.py > .sig-name,
+dt.sig.sig-object.py > .sig-paren,
+dt.sig.sig-object.py > .sig-param {
+    position: static !important;
+    float: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+}
+
+span.math {
+    white-space: nowrap;
+}

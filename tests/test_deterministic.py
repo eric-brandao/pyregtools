@@ -1,5 +1,5 @@
 import numpy as np
-from pyregtools.regchoice import csvd, gram_matrix
+from pyregtools.regsolvers import csvd, gram_matrix
 from pyregtools.utils import nmse, mae
 from pyregtools.regsolvers import tikhonov, tikhonov_analytic, least_sq
 

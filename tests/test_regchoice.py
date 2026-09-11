@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.io import loadmat
-from pyregtools.regchoice import csvd, l_curve_new, gcv_lambda, discrep, ncp
-from pyregtools.regsolvers import tikhonov, tikhonov_analytic, sklearn_ridge, sklearn_ridge_c
+from pyregtools.regchoice import l_curve_new, gcv_lambda, discrep, ncp
+from pyregtools.regsolvers import csvd, tikhonov, tikhonov_analytic, sklearn_ridge, sklearn_ridge_c
 from pyregtools.regsolvers import cvx_reg, tsvd, ssvd, cvx_constrained
 from pyregtools.utils import nmse
 import matplotlib.pyplot as plt

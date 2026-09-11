@@ -7,7 +7,7 @@ name = "pyregtools"
 version = "0.1.0"
 description = "Python tools for regularized discrete inverse problems"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "numpy",
     "scipy",
@@ -24,6 +24,7 @@ test = [
 docs = [
     "sphinx",
     "numpydoc",
+    "furo",
 ]
 
 [tool.setuptools.packages.find]

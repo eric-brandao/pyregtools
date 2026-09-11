@@ -22,53 +22,6 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import warnings
 
-def csvd(A):
-    """ Computes the SVD based on the size of A.
-
-    Parameters
-    ----------
-        A : numpy ndarray
-            sensing matrix (Nm x Nu). Nm are the number of measurements
-            and Nu the number of unknowns
-    Returns
-    -------
-        u : numpy ndarray
-            left singular vectors
-        sig : numpy 1darray
-            singular values
-        v : numpy ndarray
-            right singular vectors
-    """
-    Nm, Nu = A.shape
-    if Nm >= Nu: # more measurements than unknowns
-        u, sig, v = np.linalg.svd(A, full_matrices=False)
-        v = np.conjugate(v.T)
-    else:
-        v, sig, u = np.linalg.svd(np.conjugate(A.T), full_matrices=False)
-        u = np.conjugate(u.T)
-    return u, sig, v
-
-def gram_matrix(A):
-    """ Computes Gram matrix of A
-    
-    Allows one to analyze if A has many correlated columns or not. Valid for
-    complex matrices. Scales from 0 to 1.
-    """
-    # Compute L2 norm of each row vector
-    col_norms = np.linalg.norm(A, axis=0, keepdims=True)
-    # Avoid division by zero for zero-columns
-    col_norms[col_norms == 0] = 1.0 # numerical trick for zero-th norm cols.
-    A_normalized = A / col_norms
-    # Gram matrix
-    gram_mtx = A_normalized.conj().T @ A_normalized
-    # Take the absolute values
-    abs_gram = np.abs(gram_mtx)
-    # Fill the diagonal with zeros to satisfy i != j
-    np.fill_diagonal(abs_gram, 0.0)
-    # Find the maximum value
-    cohe = np.max(abs_gram)
-    return gram_mtx, cohe
-
 def get_regpar(s_valid, npoints = 200, smin_ratio = 16 * np.finfo(float).eps):
     """ Get the initial search grid for the regularization parameter
     

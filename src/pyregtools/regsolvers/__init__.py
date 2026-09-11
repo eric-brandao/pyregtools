@@ -1,4 +1,6 @@
 from .reg_solvers import (
+    csvd, 
+    gram_matrix,
     least_sq,
     tikhonov,
     tikhonov_analytic,
