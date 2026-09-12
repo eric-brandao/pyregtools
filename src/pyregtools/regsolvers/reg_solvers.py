@@ -1,8 +1,19 @@
+""" The package contains several solvers for linear system of equations.
+
+The set of methods implemented include the compact singular value decomposition,
+Gram matrix and solvers like:
+
+- lest-squares,
+- Tikhonov regularization solver,
+- sklearn Ridger regression,
+- optimization based solver (Ridge and Lasso regression),
+- constrained optimization solver (smooth and sparse solutions),
+- truncaded and selective SVD solvers.
+"""
+
 import numpy as np
-#import scipy.io as scio
 from scipy import linalg # for svd
 from sklearn.linear_model import Ridge
-#from scipy import optimize
 import warnings
 import cvxpy as cvx
 

@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 from pyregtools.regsolvers import csvd, gram_matrix
-from pyregtools.utils import nmse, mae
+from pyregtools.utils import nmse, mae, plot_colvecs, plot_picard
 from pyregtools.regsolvers import tikhonov, tikhonov_analytic, least_sq
 
 
@@ -71,6 +73,19 @@ def test_equiv_form():
     x_tik_svd = tikhonov(U, s, V, b, 0)
     assert np.allclose(x_lsq, x_tik_ana, rtol=1e-6, atol=1e-8) and\
         np.allclose(x_lsq, x_tik_svd, rtol=1e-6, atol=1e-8)
+
+def test_plots():
+    """ test if the plots run without error.
+    """
+    A = np.random.normal(0, 1, size = (20, 20))
+    b = np.random.normal(0, 1, size = A.shape[0])
+    U,s,V = csvd(A) 
+    plot_colvecs(U, rows = 4, cols = 4, figsize = (8,5), ylim = (-0.2,0.2))
+    matplotlib.pyplot.close("all")
+    plot_picard(U, s, b, noise_norm = 0.001)
+    matplotlib.pyplot.close("all")
+    plot_picard(U, s, b, noise_norm = None)
+    matplotlib.pyplot.close("all")
 
 
 

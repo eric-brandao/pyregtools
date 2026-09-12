@@ -22,43 +22,6 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import warnings
 
-def get_regpar(s_valid, npoints = 200, smin_ratio = 16 * np.finfo(float).eps):
-    """ Get the initial search grid for the regularization parameter
-    
-    Vectorized version
-    
-    Parameters
-    -----------
-    s_valid : numpy1dArray
-        valid range of the singular values - usually up to p = len(s)
-    npoints : int
-        number of points on the grid
-    smin_ratio : float
-        ratio to first singular value. Odds are that the minimum regularization 
-        parameter will be s[0]*smin_ratio
-    """
-    last_val = max(s_valid[-1], s_valid[0] * smin_ratio)
-    reg_par_grid = np.geomspace(s_valid[0], last_val, npoints)
-    return reg_par_grid
-
-def get_regpar_old(s_valid, npoints = 200):
-    """ Get the initial search grid for the regularization parameter
-    
-    Parameters
-    -----------
-    s_valid : numpy1dArray
-        valid range of the singular values - usually up to p = len(s)
-    npoints : int
-        number of points on the grid
-    """
-    smin_ratio = 16 * np.finfo(float).eps
-    reg_par_grid = np.zeros(npoints)
-    reg_par_grid[npoints - 1] = max([s_valid[-1], s_valid[0] * smin_ratio])
-    ratio = (s_valid[0] / reg_par_grid[npoints - 1]) ** (1 / (npoints - 1))
-    for i in range(npoints - 2, -1, -1):
-        reg_par_grid[i] = ratio * reg_par_grid[i + 1]
-    return reg_par_grid
-
 def f_eta_rho(reg_param, s, xi, beta, beta2, Nm, Nu):
     """ Compute filter factors, solution and residual norms
     """
@@ -88,25 +51,81 @@ def complement_filter_factors(lambda_val, s, check_s_sq = False):
         f = lambda_val / (s + lambda_val)
     return f
 
-def get_bounds(vec_to_minimize, reg_par_vec):
-    """ Get bounds and tolerance for optmization routine
-    
+def l_curve_new(u, s, b, smin_ratio = 16 * np.finfo(float).eps, 
+            plotit = False, plot_in_color = True):
+    """ Optimal regularization parameter via the L-curve criterion.
+
+    This function uses the L-curve and computes its curvature in
+    order to find its corner - optimal regularization parameter.
+
+    Uses the function "l_corner"
+
     Parameters
-    -----------
-    vec_to_minimize : numpy1dArray
-        vector of function to be minimized
-    reg_par_vec : numpy1dArray
-        vector of the regularization parameters (initial grid). Bounds for the
-        regularization parameter are extracted from this value.
+    ----------
+        U : numpyndArray
+            Left singular vectors matrix
+        s : numpy1dArray
+            Singular values
+        b : numpy1dArray
+            Measurement vector
+        smin_ratio : float
+            ratio to first singular value. Odds are that the minimum regularization 
+            parameter will be s[0]*smin_ratio
+        plotit : bool
+            whether to plot the L curve or not. Default is False
+        plot_in_color : bool
+            choose to plot the regularization function in color or black and white.
+        
+    Returns
+    -------
+        lam_opt : float
+            optimal regularization parameter
     """
-    npoints = len(reg_par_vec)
-    min_id = np.argmin(vec_to_minimize)
-    # min_g = np.amin(dists)
-    # min_g_id = np.where(dists == min_g)[0][0]
-    x1 = reg_par_vec[int(np.amin(np.array([min_id+1, npoints-1])))]
-    x2 = reg_par_vec[int(np.amax([min_id - 1, 0]))]
-    tolerance = np.amin([x1/50, x2/50, 1e-5])
-    return x1, x2, tolerance    
+    # Sizes and shapes
+    npoints = 200  # Number of points on the L-curve    
+    p = len(s)
+    # Initial search grid
+    reg_param = get_regpar(s_valid = s[:p], npoints = npoints, smin_ratio = smin_ratio)
+    # Compute everything
+    lam_opt, curv, rho_c, eta_c, eta, rho = l_corner_new(reg_param,u,s,b)
+    # want to plot the L curve?
+    if plotit:
+        if plot_in_color:
+            color_dict = dict(l_c = 'dodgerblue', lam_l = 'r', c_c = 'navy')
+        else:
+            color_dict = dict(l_c = 'k', lam_l = 'grey', c_c = 'k')
+        fig = plt.figure(figsize = (6,3))
+        # L-curve
+        plt.loglog(rho, eta, color = color_dict['l_c'], linewidth = 1.5)
+        plt.loglog(rho_c, eta_c, marker = 'o', color = color_dict['lam_l'],
+                   markerfacecolor = 'none')
+        plt.xlim((10**np.floor(np.log10(rho.min())), 10**np.ceil(np.log10(rho.max()))))
+        plt.ylim((10**np.floor(np.log10(eta.min())), 10**np.ceil(np.log10(eta.max()))))
+
+        plt.vlines(x = rho_c, ymin=plt.ylim()[0], ymax = eta_c, color=color_dict['lam_l'], 
+                   linestyle=':', linewidth = 0.7)
+        plt.hlines(y = eta_c, xmin=plt.xlim()[0], xmax = rho_c, color=color_dict['lam_l'], 
+                   linestyle=':', linewidth = 0.7)
+        plt.title(r'L-curve ($\lambda = ${:.6f})'.format(lam_opt), loc = 'right')
+        plt.xlabel(r'Residual norm $||Ax - b||_2$')
+        plt.ylabel(r'Solution norm $||x||_2$')
+        plt.grid(linestyle = '--', which='both')
+        plt.tight_layout()
+        # Curvature
+        ax2 = fig.add_axes([0.60, 0.55, 0.3, 0.3])
+        ax2.semilogx(reg_param, -curv, color = color_dict['c_c'], linewidth = 1.5)
+        ax2.semilogx(lam_opt, np.amax(-curv), marker = 'o', color = color_dict['lam_l'],
+                   markerfacecolor = 'none')
+        ax2.set_xlim((reg_param.min(), reg_param.max()))
+        ax2.set_ylim((-0.1*(1.2*np.amax(-curv)), 1.2*np.amax(-curv)))
+        ax2.vlines(x = lam_opt, ymin=ax2.set_ylim()[0], ymax = np.amax(-curv), 
+                   color=color_dict['lam_l'], linestyle=':', linewidth = 0.7)
+        ax2.hlines(y = np.amax(-curv), xmin=ax2.set_xlim()[0], xmax = lam_opt, 
+                   color=color_dict['lam_l'], linestyle=':', linewidth = 0.7)
+        ax2.grid(linestyle = '--')
+        ax2.set_xlabel(r'$\lambda$')
+        ax2.set_ylabel(r'$-c(\lambda)$')
+    return lam_opt
 
 def curvature_new(lambda_val, s, beta, xi):
     """ Computes the negative of the curvature of the L-curve.
@@ -225,81 +244,275 @@ def l_corner_new(reg_param,u,s,b):
             rho_c = np.sqrt(rho_c ** 2 + np.linalg.norm(b0)**2)
     return reg_c, curv, rho_c, eta_c, eta, rho
 
-def l_curve_new(u, s, b, smin_ratio = 16 * np.finfo(float).eps, 
-            plotit = False, plot_in_color = True):
-    """ Optimal regularization parameter via the L-curve criterion.
-
-    This function uses the L-curve and computes its curvature in
-    order to find its corner - optimal regularization parameter.
-
-    Uses the function "l_corner"
-
+def gcv_lambda(u, s, b, smin_ratio = 16 * np.finfo(float).eps, 
+               plot_gcvfun = False, plot_in_color = True):
+    """ Optimal regularization parameter via Generalized Cross Validation.
+    
+    Finds the optmimal regularization parameter for Tikhonov regularization 
+    according to the GCV criterion (see Sec. 5.4 of Discrete Inverse Problems)
+    
     Parameters
-    ----------
-        U : numpyndArray
-            Left singular vectors matrix
-        s : numpy1dArray
-            Singular values
-        b : numpy1dArray
-            Measurement vector
-        smin_ratio : float
-            ratio to first singular value. Odds are that the minimum regularization 
-            parameter will be s[0]*smin_ratio
-        plotit : bool
-            whether to plot the L curve or not. Default is False
-        plot_in_color : bool
-            choose to plot the regularization function in color or black and white.
-        
+    ------------
+    U : numpyndArray
+        Left singular vectors matrix
+    s : numpy1dArray
+        Singular values
+    b : numpy1dArray
+        Measurement vector
+    smin_ratio : float
+        ratio to first singular value. Odds are that the minimum regularization 
+        parameter will be s[0]*smin_ratio
+    plotcp : bool
+        choose to plot the regularization function or not.
+    plot_in_color : bool
+        choose to plot the regularization function in color or black and white.
+    
     Returns
     -------
-        lam_opt : float
-            optimal regularization parameter
+        lambda : float
+            estimated regularization parameter
     """
     # Sizes and shapes
-    npoints = 200  # Number of points on the L-curve    
+    npoints = 200  # Number of points on the L-curve
+    m, n = u.shape
     p = len(s)
+    beta = np.conjugate(u).T @ b
+    beta2 = np.linalg.norm(b) ** 2 - np.linalg.norm(beta)**2
     # Initial search grid
     reg_param = get_regpar(s_valid = s[:p], npoints = npoints, smin_ratio = smin_ratio)
-    # Compute everything
-    lam_opt, curv, rho_c, eta_c, eta, rho = l_corner_new(reg_param,u,s,b)
-    # want to plot the L curve?
-    if plotit:
-        if plot_in_color:
-            color_dict = dict(l_c = 'dodgerblue', lam_l = 'r', c_c = 'navy')
-        else:
-            color_dict = dict(l_c = 'k', lam_l = 'grey', c_c = 'k')
-        fig = plt.figure(figsize = (6,3))
-        # L-curve
-        plt.loglog(rho, eta, color = color_dict['l_c'], linewidth = 1.5)
-        plt.loglog(rho_c, eta_c, marker = 'o', color = color_dict['lam_l'],
-                   markerfacecolor = 'none')
-        plt.xlim((10**np.floor(np.log10(rho.min())), 10**np.ceil(np.log10(rho.max()))))
-        plt.ylim((10**np.floor(np.log10(eta.min())), 10**np.ceil(np.log10(eta.max()))))
+    # npoints = len(reg_param)
+    # Intrinsic residual.
+    delta0 = 0
+    if (m > n and beta2 > 0):
+        delta0 = beta2
+    # Vector of GCV-function values.
+    G = np.zeros(npoints)
+    for i in np.arange(npoints):
+        G[i] = gcvfun(reg_param[i], s, beta[:p], delta0, dsvd = False, mn = m-n)
+        
+    # Initial minimization    
+    x1, x2, tolerance = get_bounds(vec_to_minimize = G, reg_par_vec = reg_param)
+    # Refined minimization
+    reg_min = optimize.fminbound(gcvfun, x1, x2, 
+                                args = (s, beta[:p], delta0, False,  m-n), 
+                                xtol=tolerance, full_output=False, disp=False)
+    # Final evalutaion of GCV funtion
+    minG = gcvfun(reg_min, s, beta[:p], delta0, False, m-n)
 
-        plt.vlines(x = rho_c, ymin=plt.ylim()[0], ymax = eta_c, color=color_dict['lam_l'], 
-                   linestyle=':', linewidth = 0.7)
-        plt.hlines(y = eta_c, xmin=plt.xlim()[0], xmax = rho_c, color=color_dict['lam_l'], 
-                   linestyle=':', linewidth = 0.7)
-        plt.title(r'L-curve ($\lambda = ${:.6f})'.format(lam_opt), loc = 'right')
-        plt.xlabel(r'Residual norm $||Ax - b||_2$')
-        plt.ylabel(r'Solution norm $||x||_2$')
-        plt.grid(linestyle = '--', which='both')
-        plt.tight_layout()
-        # Curvature
-        ax2 = fig.add_axes([0.60, 0.55, 0.3, 0.3])
-        ax2.semilogx(reg_param, -curv, color = color_dict['c_c'], linewidth = 1.5)
-        ax2.semilogx(lam_opt, np.amax(-curv), marker = 'o', color = color_dict['lam_l'],
+    if plot_gcvfun:
+        if plot_in_color:
+            color_dict = dict(g_c = 'dodgerblue', lam_c = 'r')
+        else:
+            color_dict = dict(g_c = 'k', lam_c = 'grey')
+        
+        plt.figure(figsize = (6,3))
+        plt.loglog(reg_param , G, linewidth = 1.5, color = color_dict['g_c'])
+        plt.loglog(reg_min, minG, marker = 'o', color = color_dict['lam_c'],
                    markerfacecolor = 'none')
-        ax2.set_xlim((reg_param.min(), reg_param.max()))
-        ax2.set_ylim((-0.1*(1.2*np.amax(-curv)), 1.2*np.amax(-curv)))
-        ax2.vlines(x = lam_opt, ymin=ax2.set_ylim()[0], ymax = np.amax(-curv), 
-                   color=color_dict['lam_l'], linestyle=':', linewidth = 0.7)
-        ax2.hlines(y = np.amax(-curv), xmin=ax2.set_xlim()[0], xmax = lam_opt, 
-                   color=color_dict['lam_l'], linestyle=':', linewidth = 0.7)
-        ax2.grid(linestyle = '--')
-        ax2.set_xlabel(r'$\lambda$')
-        ax2.set_ylabel(r'$-c(\lambda)$')
-    return lam_opt
+        plt.ylim((10**np.floor(np.log10(G.min())), 10**np.ceil(np.log10(G.max()))))
+        plt.vlines(x=reg_min, ymin=plt.ylim()[0], ymax=minG, color=color_dict['lam_c'], 
+                   linestyle=':', linewidth = 0.7)
+        plt.hlines(y=minG, xmin=plt.xlim()[0], xmax=reg_min, color=color_dict['lam_c'], 
+                   linestyle=':', linewidth = 0.7)
+        plt.xlim((reg_param.min(), reg_param.max()))
+        plt.xlabel(r'$\lambda$')
+        plt.ylabel(r'$G(\lambda)$')
+        plt.title(r'GCV function ($\lambda = {:.6f})$'.format(reg_min), loc = 'right')
+        plt.grid(linestyle = '--')
+        plt.tight_layout()    
+    return reg_min
+        
+def gcvfun(lambda_val, s, beta, delta0, dsvd = False, mn = 0):
+    """ GCV function
+    
+    Parammeters
+    -------------
+    lambda_val : float
+        Value of the regularization parameter
+    s : numpy1dArray
+        Singular values
+    dsvd : bool
+        Computational mode of filter factors
+    """
+    f = complement_filter_factors(lambda_val, s, check_s_sq = dsvd)
+    G = (np.linalg.norm(f * beta)**2 + delta0)/(mn + np.sum(f))**2
+    return G
+
+def get_q_ncp(beta, m):
+    """ Get the value of q for NCP
+    """
+    if np.isrealobj(beta):
+        q = m // 2 +1
+    else:
+        q = m
+    return q
+
+def ncp(U, s, b, smin_ratio = 16 * np.finfo(float).eps,
+        plotcp = False, plot_in_color = True):
+    """ Normalized Cumulative Periodgram regularization criterion
+    
+    Finds the optmimal regularization parameter for Tikhonov regularization 
+    according to the NCP criterion (see Sec. 5.5 of Discrete Inverse Problems)
+    
+    Parameters
+    ------------
+    U : numpyndArray
+        Left singular vectors matrix
+    s : numpy1dArray
+        Singular values
+    b : numpy1dArray
+        Measurement vector
+    smin_ratio : float
+        ratio to first singular value. Odds are that the minimum regularization 
+        parameter will be s[0]*smin_ratio
+    plotcp : bool
+        choose to plot the regularization function or not.
+    plot_in_color : bool
+        choose to plot the regularization function in color or black and white.
+    """
+    # Sizes and shapes
+    m = U.shape[0]
+    p = len(s)
+    npoints, nNCPs = 200, 20
+    # beta - b projection on U
+    beta = np.conj(U.T) @ b
+    # Initial search grid
+    reg_param = get_regpar(s_valid = s[:p], npoints = npoints, smin_ratio = smin_ratio)
+    # Inits
+    dists = np.zeros(npoints) # Norm of cp-c_white
+    q = get_q_ncp(beta, m)
+    cp = np.zeros((q-1, npoints)) # cp
+    # Fill cp and norm of cp-c_white
+    for i in range(npoints):
+        dists[i], cp[:, i], _ = ncpfun(reg_param[i], s, beta[:p], U[:, :p])
+    # Initial minimization    
+    x1, x2, tolerance = get_bounds(vec_to_minimize = dists, 
+                                   reg_par_vec = reg_param)
+    # Final miminization
+    reg_min_result = optimize.fminbound(clean_ncpfun, x1, x2, 
+                                args = (s[:p], beta[:p], U[:, :p]), 
+                                xtol=tolerance, full_output=False, disp=False)
+    # Final evalutaion of NCP funtion
+    dist, cp_opt, cp_white = ncpfun(reg_min_result, s[:p],  beta[:p], U[:, :p])
+    # Print 
+    if plotcp:
+        if plot_in_color:
+            color_dict = dict(cp_opt_c = 'dodgerblue', c_w_c = 'k')
+        else:
+            color_dict = dict(cp_opt_c = 'k', c_w_c = 'grey')
+            
+        stp = int(npoints/nNCPs)
+        plt.figure(figsize = (6,3))
+        plt.plot(cp[:,0:npoints:stp], '-.', color = 'grey', linewidth = 0.5)
+        plt.plot(cp_opt, '-', color = color_dict['cp_opt_c'], linewidth = 1.5, 
+                 label = r'most white $\mathbf{{c}}(\mathbf{{r}}_{{\lambda}})$')
+        plt.plot(cp_white, '--', color = color_dict['c_w_c'], linewidth = 1.5, 
+                 label = r'$\mathbf{{c}}_{{\text{white}}}$')
+        plt.legend()
+        plt.grid(linestyle = '--')
+        plt.xlabel('i')
+        plt.ylabel(r'$\mathbf{{c}}(\mathbf{{r}}_{{\lambda}})$')
+        plt.title(r'$\lambda = {}$'.format(reg_min_result), loc = 'right')
+        plt.xlim((0,q-2))
+        plt.ylim((-0.1,1.1))
+        plt.tight_layout()
+    
+    return reg_min_result
+
+def ncpfun(lambda_val, s, beta, U, dsvd=False):
+    """ NCP function
+    
+    Parammeters
+    -------------
+    lambda_val : float
+        Value of the regularization parameter
+    s : numpy1dArray
+        Singular values
+    dsvd : bool
+        Computational mode of filter factors
+    """
+    # Filter factors
+    f = complement_filter_factors(lambda_val, s, check_s_sq = dsvd)
+    # Resudual norm, m and q
+    r = U @ (f * beta)
+    m = len(r)   
+    q = get_q_ncp(beta, m)
+    # FFT of residual norm and its NCP
+    D = np.abs(np.fft.fft(r)) ** 2
+    D = D[1:q]
+    cp = np.cumsum(D) / np.sum(D) # NCP of r
+    # NCP of white noise
+    c_white = np.arange(1, q) / (q-1)
+    # distance (norm of cp-v)
+    dist = np.linalg.norm(cp - c_white)
+    return dist, cp, c_white
+
+def clean_ncpfun(lambda_val, s, beta, U, dsvd=False):
+    """ Version of the ncpfun for fminbound optmizer.
+    """
+    dist, _, _ = ncpfun(lambda_val, s, beta, U, dsvd=False)
+    return dist
+
+def get_regpar(s_valid, npoints = 200, smin_ratio = 16 * np.finfo(float).eps):
+    """ Get the initial search grid for the regularization parameter
+    
+    Vectorized version
+    
+    Parameters
+    -----------
+    s_valid : numpy1dArray
+        valid range of the singular values - usually up to p = len(s)
+    npoints : int
+        number of points on the grid
+    smin_ratio : float
+        ratio to first singular value. Odds are that the minimum regularization 
+        parameter will be s[0]*smin_ratio
+    """
+    last_val = max(s_valid[-1], s_valid[0] * smin_ratio)
+    reg_par_grid = np.geomspace(s_valid[0], last_val, npoints)
+    return reg_par_grid
+
+def get_regpar_old(s_valid, npoints = 200):
+    """ Get the initial search grid for the regularization parameter
+    
+    Parameters
+    -----------
+    s_valid : numpy1dArray
+        valid range of the singular values - usually up to p = len(s)
+    npoints : int
+        number of points on the grid
+    """
+    smin_ratio = 16 * np.finfo(float).eps
+    reg_par_grid = np.zeros(npoints)
+    reg_par_grid[npoints - 1] = max([s_valid[-1], s_valid[0] * smin_ratio])
+    ratio = (s_valid[0] / reg_par_grid[npoints - 1]) ** (1 / (npoints - 1))
+    for i in range(npoints - 2, -1, -1):
+        reg_par_grid[i] = ratio * reg_par_grid[i + 1]
+    return reg_par_grid
+
+def get_bounds(vec_to_minimize, reg_par_vec):
+    """ Get bounds and tolerance for optmization routine
+    
+    Parameters
+    -----------
+    vec_to_minimize : numpy1dArray
+        vector of function to be minimized
+    reg_par_vec : numpy1dArray
+        vector of the regularization parameters (initial grid). Bounds for the
+        regularization parameter are extracted from this value.
+    """
+    npoints = len(reg_par_vec)
+    min_id = np.argmin(vec_to_minimize)
+    # min_g = np.amin(dists)
+    # min_g_id = np.where(dists == min_g)[0][0]
+    x1 = reg_par_vec[int(np.amin(np.array([min_id+1, npoints-1])))]
+    x2 = reg_par_vec[int(np.amax([min_id - 1, 0]))]
+    tolerance = np.amin([x1/50, x2/50, 1e-5])
+    return x1, x2, tolerance    
+
+
+
+
 
 def curvature(lambd, sig, beta, xi):
     """ computes the NEGATIVE of the curvature.
@@ -543,100 +756,6 @@ def l_curve(u, s, b, smin_ratio = 16 * np.finfo(float).eps,
         plt.show()
     return lam_opt
 
-def gcv_lambda(u, s, b, smin_ratio = 16 * np.finfo(float).eps, 
-               plot_gcvfun = False, plot_in_color = True):
-    """ Optimal regularization parameter via Generalized Cross Validation.
-    
-    Finds the optmimal regularization parameter for Tikhonov regularization 
-    according to the GCV criterion (see Sec. 5.4 of Discrete Inverse Problems)
-    
-    Parameters
-    ------------
-    U : numpyndArray
-        Left singular vectors matrix
-    s : numpy1dArray
-        Singular values
-    b : numpy1dArray
-        Measurement vector
-    smin_ratio : float
-        ratio to first singular value. Odds are that the minimum regularization 
-        parameter will be s[0]*smin_ratio
-    plotcp : bool
-        choose to plot the regularization function or not.
-    plot_in_color : bool
-        choose to plot the regularization function in color or black and white.
-    
-    Returns
-    -------
-        lambda : float
-            estimated regularization parameter
-    """
-    # Sizes and shapes
-    npoints = 200  # Number of points on the L-curve
-    m, n = u.shape
-    p = len(s)
-    beta = np.conjugate(u).T @ b
-    beta2 = np.linalg.norm(b) ** 2 - np.linalg.norm(beta)**2
-    # Initial search grid
-    reg_param = get_regpar(s_valid = s[:p], npoints = npoints, smin_ratio = smin_ratio)
-    # npoints = len(reg_param)
-    # Intrinsic residual.
-    delta0 = 0
-    if (m > n and beta2 > 0):
-        delta0 = beta2
-    # Vector of GCV-function values.
-    G = np.zeros(npoints)
-    for i in np.arange(npoints):
-        G[i] = gcvfun(reg_param[i], s, beta[:p], delta0, dsvd = False, mn = m-n)
-        
-    # Initial minimization    
-    x1, x2, tolerance = get_bounds(vec_to_minimize = G, reg_par_vec = reg_param)
-    # Refined minimization
-    reg_min = optimize.fminbound(gcvfun, x1, x2, 
-                                args = (s, beta[:p], delta0, False,  m-n), 
-                                xtol=tolerance, full_output=False, disp=False)
-    # Final evalutaion of GCV funtion
-    minG = gcvfun(reg_min, s, beta[:p], delta0, False, m-n)
-
-    if plot_gcvfun:
-        if plot_in_color:
-            color_dict = dict(g_c = 'dodgerblue', lam_c = 'r')
-        else:
-            color_dict = dict(g_c = 'k', lam_c = 'grey')
-        
-        plt.figure(figsize = (6,3))
-        plt.loglog(reg_param , G, linewidth = 1.5, color = color_dict['g_c'])
-        plt.loglog(reg_min, minG, marker = 'o', color = color_dict['lam_c'],
-                   markerfacecolor = 'none')
-        plt.ylim((10**np.floor(np.log10(G.min())), 10**np.ceil(np.log10(G.max()))))
-        plt.vlines(x=reg_min, ymin=plt.ylim()[0], ymax=minG, color=color_dict['lam_c'], 
-                   linestyle=':', linewidth = 0.7)
-        plt.hlines(y=minG, xmin=plt.xlim()[0], xmax=reg_min, color=color_dict['lam_c'], 
-                   linestyle=':', linewidth = 0.7)
-        plt.xlim((reg_param.min(), reg_param.max()))
-        plt.xlabel(r'$\lambda$')
-        plt.ylabel(r'$G(\lambda)$')
-        plt.title(r'GCV function ($\lambda = {:.6f})$'.format(reg_min), loc = 'right')
-        plt.grid(linestyle = '--')
-        plt.tight_layout()    
-    return reg_min
-        
-def gcvfun(lambda_val, s, beta, delta0, dsvd = False, mn = 0):
-    """ GCV function
-    
-    Parammeters
-    -------------
-    lambda_val : float
-        Value of the regularization parameter
-    s : numpy1dArray
-        Singular values
-    dsvd : bool
-        Computational mode of filter factors
-    """
-    f = complement_filter_factors(lambda_val, s, check_s_sq = dsvd)
-    G = (np.linalg.norm(f * beta)**2 + delta0)/(mn + np.sum(f))**2
-    return G
-
 def discrep(U, s, V, b, delta, x_0=None):
     m = U.shape[0]
     n = V.shape[0]
@@ -755,119 +874,4 @@ def newton(lambda_0, delta, s, beta, omega, delta_0):
     if abs(step) > thr * lambda_val and abs(step) > thr:
         raise ValueError("Max. number of iterations ({}) reached".format(it_max))
     
-    return lambda_val
-
-def get_q_ncp(beta, m):
-    """ Get the value of q for NCP
-    """
-    if np.isrealobj(beta):
-        q = m // 2 +1
-    else:
-        q = m
-    return q
-
-def ncp(U, s, b, smin_ratio = 16 * np.finfo(float).eps,
-        plotcp = False, plot_in_color = True):
-    """ Normalized Cumulative Periodgram regularization criterion
-    
-    Finds the optmimal regularization parameter for Tikhonov regularization 
-    according to the NCP criterion (see Sec. 5.5 of Discrete Inverse Problems)
-    
-    Parameters
-    ------------
-    U : numpyndArray
-        Left singular vectors matrix
-    s : numpy1dArray
-        Singular values
-    b : numpy1dArray
-        Measurement vector
-    smin_ratio : float
-        ratio to first singular value. Odds are that the minimum regularization 
-        parameter will be s[0]*smin_ratio
-    plotcp : bool
-        choose to plot the regularization function or not.
-    plot_in_color : bool
-        choose to plot the regularization function in color or black and white.
-    """
-    # Sizes and shapes
-    m = U.shape[0]
-    p = len(s)
-    npoints, nNCPs = 200, 20
-    # beta - b projection on U
-    beta = np.conj(U.T) @ b
-    # Initial search grid
-    reg_param = get_regpar(s_valid = s[:p], npoints = npoints, smin_ratio = smin_ratio)
-    # Inits
-    dists = np.zeros(npoints) # Norm of cp-c_white
-    q = get_q_ncp(beta, m)
-    cp = np.zeros((q-1, npoints)) # cp
-    # Fill cp and norm of cp-c_white
-    for i in range(npoints):
-        dists[i], cp[:, i], _ = ncpfun(reg_param[i], s, beta[:p], U[:, :p])
-    # Initial minimization    
-    x1, x2, tolerance = get_bounds(vec_to_minimize = dists, 
-                                   reg_par_vec = reg_param)
-    # Final miminization
-    reg_min_result = optimize.fminbound(clean_ncpfun, x1, x2, 
-                                args = (s[:p], beta[:p], U[:, :p]), 
-                                xtol=tolerance, full_output=False, disp=False)
-    # Final evalutaion of NCP funtion
-    dist, cp_opt, cp_white = ncpfun(reg_min_result, s[:p],  beta[:p], U[:, :p])
-    # Print 
-    if plotcp:
-        if plot_in_color:
-            color_dict = dict(cp_opt_c = 'dodgerblue', c_w_c = 'k')
-        else:
-            color_dict = dict(cp_opt_c = 'k', c_w_c = 'grey')
-            
-        stp = int(npoints/nNCPs)
-        plt.figure(figsize = (6,3))
-        plt.plot(cp[:,0:npoints:stp], '-.', color = 'grey', linewidth = 0.5)
-        plt.plot(cp_opt, '-', color = color_dict['cp_opt_c'], linewidth = 1.5, 
-                 label = r'most white $\mathbf{{c}}(\mathbf{{r}}_{{\lambda}})$')
-        plt.plot(cp_white, '--', color = color_dict['c_w_c'], linewidth = 1.5, 
-                 label = r'$\mathbf{{c}}_{{\text{white}}}$')
-        plt.legend()
-        plt.grid(linestyle = '--')
-        plt.xlabel('i')
-        plt.ylabel(r'$\mathbf{{c}}(\mathbf{{r}}_{{\lambda}})$')
-        plt.title(r'$\lambda = {}$'.format(reg_min_result), loc = 'right')
-        plt.xlim((0,q-2))
-        plt.ylim((-0.1,1.1))
-        plt.tight_layout()
-    
-    return reg_min_result
-
-def ncpfun(lambda_val, s, beta, U, dsvd=False):
-    """ NCP function
-    
-    Parammeters
-    -------------
-    lambda_val : float
-        Value of the regularization parameter
-    s : numpy1dArray
-        Singular values
-    dsvd : bool
-        Computational mode of filter factors
-    """
-    # Filter factors
-    f = complement_filter_factors(lambda_val, s, check_s_sq = dsvd)
-    # Resudual norm, m and q
-    r = U @ (f * beta)
-    m = len(r)   
-    q = get_q_ncp(beta, m)
-    # FFT of residual norm and its NCP
-    D = np.abs(np.fft.fft(r)) ** 2
-    D = D[1:q]
-    cp = np.cumsum(D) / np.sum(D) # NCP of r
-    # NCP of white noise
-    c_white = np.arange(1, q) / (q-1)
-    # distance (norm of cp-v)
-    dist = np.linalg.norm(cp - c_white)
-    return dist, cp, c_white
-
-def clean_ncpfun(lambda_val, s, beta, U, dsvd=False):
-    """ Version of the ncpfun for fminbound optmizer.
-    """
-    dist, _, _ = ncpfun(lambda_val, s, beta, U, dsvd=False)
-    return dist 
+    return lambda_val 
