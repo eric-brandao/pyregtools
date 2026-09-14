@@ -520,3 +520,7 @@ def cvx_solver_c(A, b, noise_norm, l_norm = 2):
     prob = cvx.Problem(obj, constraints)
     prob.solve();
     return x.value
+
+#A = np.random.normal(0, 1, size = (4,10))
+#u,s,v = csvd(A)
+#print(u.shape)

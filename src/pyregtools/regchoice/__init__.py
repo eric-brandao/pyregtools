@@ -1,5 +1,5 @@
 from .reg_choice import (
-    l_curve_new,
+    l_curve,
     gcv_lambda,
     discrep,
     ncp,

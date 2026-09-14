@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.io import loadmat
-from pyregtools.regchoice import l_curve_new, gcv_lambda, discrep, ncp
+from pyregtools.regchoice import l_curve, gcv_lambda, discrep, ncp
 from pyregtools.regsolvers import csvd, tikhonov, tikhonov_analytic, sklearn_ridge, sklearn_ridge_c
 from pyregtools.regsolvers import cvx_reg, tsvd, ssvd, cvx_constrained
 from pyregtools.utils import nmse
@@ -42,7 +42,7 @@ def test_lc():
     x, A, b, b_noisy, x_true, snr, n,\
         lam_dp, lam_lc, lam_gcv, lam_ncp, x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     U, s, V = csvd(A)
-    lam_lc_py = l_curve_new(U, s, b_noisy)
+    lam_lc_py = l_curve(U, s, b_noisy)
     assert np.isclose(lam_lc_py, lam_lc, rtol=1e-3)
 
 def test_gcv():
