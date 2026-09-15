@@ -33,7 +33,7 @@ def test_dp():
     x, A, b, b_noisy, x_true, snr, n,\
         lam_dp, lam_lc, lam_gcv, lam_ncp, x_tik, x_k, labda, num_svd_comp = import_mat_data()
     U, s, V = csvd(A)
-    x_dp, lam_dp_py = discrep(U, s, V, b_noisy, 1.0*np.linalg.norm(n))
+    lam_dp_py = discrep(U, s, b_noisy, 1.0*np.linalg.norm(n))
     assert np.isclose(lam_dp_py, lam_dp, rtol=1e-3)
 
 def test_lc():

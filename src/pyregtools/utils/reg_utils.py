@@ -188,3 +188,46 @@ def nmse_freq(x_meas, x_ref):
     for jf in np.arange(nfreq):
         nmse_freq[jf] = nmse(x_meas[:,jf], x_ref[:,jf])
     return nmse_freq
+
+def add_gaussian_noise(b_true, snr = 20, seed = 0):
+    """
+    Add Gaussian noise to a real-valued measurement vector.
+
+    Generates a Gaussian random-noise vector and scales its Euclidean
+    norm to obtain the prescribed signal-to-noise ratio (SNR). The noisy
+    measurement is given by
+
+    .. math::
+
+        \\mathbf{b}
+        =
+        \\mathbf{b}_{\\mathrm{true}} + \\mathbf{n},
+
+    where the noise norm is scaled according to
+
+    .. math::
+
+        \\|\\mathbf{n}\\|_2
+        =
+        10^{-\\mathrm{SNR}/20}
+        \\|\\mathbf{b}_{\\mathrm{true}}\\|_2.
+
+    Parameters
+    ----------
+    b_true : ndarray, shape (M,)
+        True noiseless measurement vector.
+    snr : float, default=20
+        Signal-to-noise ratio in decibels (dB).
+    seed : int, default=0
+        Seed used to initialize the random-number generator.
+
+    Returns
+    -------
+    b_noisy : ndarray, shape (M,)
+        Measurement vector with additive Gaussian noise.
+    """
+    np.random.seed(seed)
+    n = np.random.normal(loc = 0.0, scale = 1, size = len(b_true))
+    n /= np.linalg.norm(n)
+    n *= (10**(-snr/20))*np.linalg.norm(b_true)
+    return b_true + n

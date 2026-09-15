@@ -968,7 +968,7 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
 
     Returns
     -------
-    reg_min_result : float
+    reg_min : float
         Tikhonov regularization parameter selected by the NCP criterion.
 
     Notes
@@ -1015,11 +1015,11 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
     lower_bound, upper_bound, tolerance = get_bounds(vec_to_minimize = dists, 
                                    reg_par_vec = reg_param)
     # Final miminization
-    reg_min_result = optimize.fminbound(clean_ncpfun, lower_bound, upper_bound, 
+    reg_min = optimize.fminbound(clean_ncpfun, lower_bound, upper_bound, 
                                 args = (s, beta, u), 
                                 xtol=tolerance, full_output=False, disp=False)
     # Final evalutaion of NCP funtion
-    dist, cp_opt, cp_white = ncpfun(reg_min_result, s,  beta, u)
+    dist, cp_opt, cp_white = ncpfun(reg_min, s,  beta, u)
     # Print 
     if plotcp:
         if plot_in_color:
@@ -1043,7 +1043,7 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
         plt.ylim((-0.1,1.1))
         plt.tight_layout()
     
-    return reg_min_result
+    return reg_min
 
 def ncpfun(lambda_val, s, beta, u, check_s_sq=False):
     """
@@ -1236,8 +1236,164 @@ def get_q_ncp(beta, p):
         q = p
     return q
 
+def discrep(u, s, b, noise_norm):
+    """
+    Select the Tikhonov regularization parameter using the discrepancy
+    principle.
 
-def discrep(U, s, V, b, delta, x_0=None):
+    The discrepancy principle selects the regularization parameter such
+    that the norm of the regularized residual matches the estimated norm
+    of the measurement noise [1]_,
+
+    .. math::
+
+        \\|\\mathbf{A}\\mathbf{x}_{\\lambda}
+        - \\mathbf{b}\\|_2
+        =
+        \\|\\mathbf{n}\\|_2.
+
+    The corresponding root of the discrepancy function is determined
+    using a bounded root-finding algorithm. The initial search interval is
+    :math:`[0, \\sigma_1]`, where :math:`\\sigma_1` is the largest singular
+    value. If this interval does not bracket the root, the upper bound is
+    successively increased until a sign change in the discrepancy function
+    is obtained. Provided that the noise norm satisfies
+
+    .. math::
+
+        \\beta_{\\perp}
+        \\leq
+        \\|\\mathbf{n}\\|_2
+        <
+        \\|\\mathbf{b}\\|_2,
+
+    a root exists and the discrepancy principle can be satisfied.
+
+    Parameters
+    ----------
+    u : ndarray
+        Matrix containing the left singular vectors of the forward matrix.
+    s : ndarray, shape (p,)
+        Singular values, ordered from largest to smallest.
+    b : ndarray, shape (M,)
+        Measurement vector.
+    noise_norm : float
+        Estimated norm of the measurement noise,
+        :math:`\\|\\mathbf{n}\\|_2`.
+
+    Returns
+    -------
+    reg_min : float
+        Tikhonov regularization parameter selected by the discrepancy
+        principle.
+
+    Notes
+    -----
+    The measurement vector is projected onto the left singular-vector
+    basis,
+
+    .. math::
+
+        \\boldsymbol{\\beta}
+        =
+        \\mathbf{U}^{H}\\mathbf{b}.
+
+    The squared norm of the component of the measurement vector orthogonal
+    to the subspace spanned by the left singular vectors is computed as
+
+    .. math::
+
+        \\beta_{\\perp}^{2}
+        =
+        \\max\\left(
+        \\|\\mathbf{b}\\|_2^2
+        -
+        \\|\\boldsymbol{\\beta}\\|_2^2,
+        0
+        \\right).
+
+    If the specified noise norm is smaller than this minimum achievable
+    residual norm, the discrepancy principle cannot be satisfied and a
+    ``ValueError`` is raised.
+
+    References
+    ----------
+    .. [1] P. C. Hansen, *Discrete Inverse Problems: Insight and
+           Algorithms*, SIAM, Philadelphia, 2010.
+    """
+    beta = u.conj().T @ b
+    beta_perp_sq = max(np.linalg.norm(b)**2 - np.linalg.norm(beta)**2, 0.0)
+    if noise_norm**2 < beta_perp_sq:
+        raise ValueError(
+            "Noise norm is smaller than the minimum achievable residual norm."
+        )
+    
+    lambda_min, lambda_max = 0, s[0]
+    # Increase upper bound until the root is bracketed
+    while discrepancy_fun(lambda_max, s, beta, beta_perp_sq, noise_norm) < 0:
+        lambda_max *= 2.0
+    reg_min = optimize.brentq(discrepancy_fun, lambda_min, lambda_max,
+        args=(s, beta, beta_perp_sq, noise_norm))
+    return reg_min
+    
+def discrepancy_fun(lambda_val, s, beta, beta_perp_sq, noise_norm):
+    """
+    Evaluate the discrepancy-principle function.
+
+    Computes the difference between the squared norm of the Tikhonov
+    residual and the squared norm of the measurement noise,
+
+    .. math::
+
+        R(\\lambda)
+        =
+        \\left\\|
+        \\bar{\\mathbf{f}}(\\lambda) \\odot \\boldsymbol{\\beta}
+        \\right\\|_2^2
+        +
+        \\beta_{\\perp}^2
+        -
+        \\|\\mathbf{n}\\|_2^2,
+
+    where :math:`\\bar{\\mathbf{f}}(\\lambda)` contains the complementary
+    Tikhonov filter factors (see :func:`complement_filter_factors`). 
+    The discrepancy principle is satisfied when :math:`R(\\lambda) = 0`.
+
+    Parameters
+    ----------
+    lambda_val : float
+        Tikhonov regularization parameter.
+    s : ndarray, shape (p,)
+        Singular values.
+    beta : ndarray, shape (p,)
+        Expansion coefficients of the measurement vector in the left
+        singular-vector basis.
+    beta_perp_sq : float
+        Squared norm of the component of the measurement vector orthogonal
+        to the subspace spanned by the left singular vectors.
+    noise_norm : float
+        Norm of the measurement noise, :math:`\\|\\mathbf{n}\\|_2`.
+
+    Returns
+    -------
+    discrepancy : float
+        Difference between the squared residual norm and the squared
+        measurement-noise norm.
+    """
+
+    cf = complement_filter_factors(lambda_val, s)
+    residual_sq = (np.linalg.norm(cf * beta)**2 + beta_perp_sq)
+    return residual_sq - noise_norm**2
+
+
+def discrep_old(U, s, V, b, delta, x_0=None):
+    """
+    Deprecated implementation of the Discrepancy principle.
+
+    .. deprecated:: 0.1.0
+        This function is retained for compatibility and validation purposes.
+        Use :func:`discrep` instead.
+    """
     m = U.shape[0]
     n = V.shape[0]
     p = len(s)
@@ -1316,6 +1472,13 @@ def discrep(U, s, V, b, delta, x_0=None):
     return x_delta, lambda_val
 
 def newton(lambda_0, delta, s, beta, omega, delta_0):
+    """
+    Deprecated implementation used in the old Discrepancy 
+    principle method (:func:`discrep_old`).
+
+    .. deprecated:: 0.1.0
+        This function is retained for compatibility and validation purposes.
+    """
     thr = np.sqrt(np.finfo(float).eps)
     it_max = 50
     

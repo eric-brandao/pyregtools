@@ -4,4 +4,5 @@ from .reg_utils import (
     nmse,
     mae,
     nmse_freq,
+    add_gaussian_noise,
 )
