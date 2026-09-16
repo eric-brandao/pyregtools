@@ -1,18 +1,12 @@
 Toy Problems
 ============
 
-Gravity
--------
+A collection of simple toy problems to teach and test inverse problems.
+
+1-dimensional gravity survey
+-----------------------------
 
 .. automodule:: pyregtools.toyproblems.gravity
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Original
--------
-
-.. automodule:: pyregtools.toyproblems.regu_test_problems
-   :members:
-   :undoc-members:
+   :exclude-members: x, weights, coord, A, x_true, b_true, b_noisy
    :show-inheritance:
