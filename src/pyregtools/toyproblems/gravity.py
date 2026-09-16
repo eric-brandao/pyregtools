@@ -41,7 +41,7 @@ import warnings
 from pyregtools.utils import add_gaussian_noise
 
 
-class Gravity1D():
+class Gravity1D:
     """
     One-dimensional gravity survey inverse problem.
 
@@ -440,7 +440,7 @@ class Gravity1D():
         """
         self.b_noisy = add_gaussian_noise(self.b_true, snr = snr, seed = seed)
 
-    def plot_problem(self):
+    def plot_problem(self, plot_in_color = True):
         """
         Plot a schematic of the gravity survey geometry.
 
@@ -450,6 +450,12 @@ class Gravity1D():
         The source coordinates, measurement coordinates, and separation
         must be defined beforehand.
 
+        Parameters
+        ----------
+        plot_in_color : bool, default=True
+            If ``True``, use colored points in the plot. If ``False``, use a
+            grayscale representation.
+
         Returns
         -------
         fig : matplotlib.figure.Figure
@@ -457,6 +463,11 @@ class Gravity1D():
         ax : matplotlib.axes.Axes
             Matplotlib axes.
         """
+        if plot_in_color:
+            colors = ['royalblue', 'r']
+        else:
+            colors = ['k', 'grey']
+
         fig, ax = plt.subplots(figsize=(10, 4))
 
         # Horizontal extent of the schematic
@@ -468,11 +479,11 @@ class Gravity1D():
         ax.plot([self.lb, self.ub], [self.d, self.d], 'k-', lw=1)
 
         # Discretization points
-        ax.plot(self.x, np.zeros_like(self.x), 's', color = 'k',
+        ax.plot(self.x, np.zeros_like(self.x), 's', color = colors[0],
                 ms=3, label=r'Source points ($L = {}$)'.format(self.x.shape[0]))
 
-        ax.plot(self.coord, self.d * np.ones_like(self.coord), 'o', color = 'grey',
-                ms=3, label=r'Measurement points ($M = {}$)'.format(self.x.shape[0]))
+        ax.plot(self.coord, self.d * np.ones_like(self.coord), 'o', color = colors[1],
+                ms=3, label=r'Measurement points ($M = {}$)'.format(self.coord.shape[0]))
 
         # Vertical separation
         x_arrow = self.lb - 0.06 * span

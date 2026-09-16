@@ -189,7 +189,49 @@ def nmse_freq(x_meas, x_ref):
         nmse_freq[jf] = nmse(x_meas[:,jf], x_ref[:,jf])
     return nmse_freq
 
-def add_gaussian_noise(b_true, snr = 20, seed = 0):
+def add_gaussian_noise(b_true, snr=20, seed=0):
+    """
+    Add real or complex Gaussian noise at a prescribed SNR.
+
+    The noise vector is scaled to satisfy
+
+    .. math::
+
+        \\|\\mathbf{n}\\|_2
+        =
+        10^{-\\mathrm{SNR}/20}
+        \\|\\mathbf{b}_{\\mathrm{true}}\\|_2.
+
+    Complex-valued inputs receive circular complex Gaussian noise,
+    with independent real and imaginary components.
+
+    Parameters
+    ----------
+    b_true : ndarray, shape (M,)
+        Noiseless measurement vector.
+    snr : float, default=20
+        Target signal-to-noise ratio in decibels.
+    seed : int, default=0
+        Random seed.
+
+    Returns
+    -------
+    b_noisy : ndarray, shape (M,)
+        Measurement vector with additive noise.
+    """
+    b_true = np.asarray(b_true)
+    rng = np.random.default_rng(seed)
+
+    if np.iscomplexobj(b_true):
+        noise = (rng.normal(loc=0.0, scale=1.0, size=b_true.shape)
+            + 1j * rng.normal(loc=0.0, scale=1.0, size=b_true.shape)) / np.sqrt(2)
+    else:
+        noise = rng.normal(loc=0.0, scale=1.0, size=b_true.shape)
+    noise *= (10**(-snr / 20) * np.linalg.norm(b_true) / np.linalg.norm(noise))
+    return b_true + noise
+
+
+def add_gaussian_noise_real(b_true, snr = 20, seed = 0):
     """
     Add Gaussian noise to a real-valued measurement vector.
 
