@@ -620,6 +620,6 @@ class SoundField2D:
                               vmin = 0, vmax = np.abs(x_sol2plot).max())
         cbar = plt.colorbar(scatter)
         cbar.set_label(r'$|x|$', fontsize=10)
-        plt.xlabel(r"$x$ [m]")
-        plt.ylabel(r"$z$ [m]")
+        plt.xlabel(r"$k_x/k_0$ [-]")
+        plt.ylabel(r"$k_z/k_0$ [-]")
         plt.tight_layout()

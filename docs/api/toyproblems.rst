@@ -1,20 +1,12 @@
 Toy Problems
 ============
 
-A collection of simple toy problems to teach and test inverse problems.
+The toy problems provide examples of discrete inverse problems
+with known reference solutions.
 
-1-dimensional gravity survey
------------------------------
+.. toctree::
+   :maxdepth: 1
 
-.. automodule:: pyregtools.toyproblems.gravity
-   :members:
-   :exclude-members: x, weights, coord, A, x_true, b_true, b_noisy
-   :show-inheritance:
-
-2-dimensional sound field analysis
-----------------------------------
-
-.. automodule:: pyregtools.toyproblems.sound_field_2D
-   :members:
-   :exclude-members: 
-   :show-inheritance:
+   gravity
+   sound_field_2D
+   temp_seminf_rod

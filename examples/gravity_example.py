@@ -7,7 +7,7 @@ from pyregtools.regchoice import l_curve
 #%% Set up the Foward problem
 problem = Gravity1D(lb = 0, ub = 1, d = 0.5) # instantiate
 problem.sample_rho_mp(L = 32) # sample source field
-problem.sample_g(M = 32) # sample measurement of g
+problem.sample_g(M = 64) # sample measurement of g
 problem.sens_mtx() # build the sensing matrix
 problem.multi_density_sin(amplitude = [1.0, 0.5], kx = [np.pi, 2*np.pi]) # create a source term
 problem.noiseless_meas() # compute true measurement
@@ -43,7 +43,7 @@ plt.show()
 
 #%% Reconstruction
 ### True value
-problem.d = 0.1
+problem.d = 0.25
 problem.noiseless_meas()
 ### reconstruction
 g_recon = problem.A @ x_est
