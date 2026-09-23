@@ -62,7 +62,7 @@ problem including evanescent waves, see [3]_ and [4]_.
 
 References
 ----------
-.. [1] Nolan, Fernandez-Grande, E., Brunskog, J. and Jeong, C-H., *A wavenumber 
+.. [1] Nolan, M. Fernandez-Grande, E. Brunskog, J. and Jeong, C-H., *A wavenumber 
     approach to quantifyingthe isotropy of the sound field in reverberant spaces*, 
     The Journal of the Acoustical Society of America, 143(4), 2018, p.2514--2526.
 

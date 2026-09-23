@@ -29,3 +29,5 @@ docs = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+[tool.setuptools.package-data]
+"pyregtools.data" = ["*.png", "*.jpg", "*.jpeg"]

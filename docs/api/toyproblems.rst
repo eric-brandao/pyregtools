@@ -8,5 +8,7 @@ with known reference solutions.
    :maxdepth: 1
 
    gravity
-   sound_field_2D
    temp_seminf_rod
+   multi_decay
+   sound_field_2D
+   image_deblur
