@@ -6,16 +6,14 @@ from pyregtools.regchoice import gcv_lambda, l_curve
 
 
 #%% Set up the Foward problem
-problem = TempSemiInfRod(xm=0.85, alpha = 1.0, T0 = 100, tmax = 15, fs = 20) # instantiate
+problem = TempSemiInfRod(xm=0.85, alpha = 1.0, T0 = 100, tmax = 5, fs = 20) # instantiate
 problem.sens_mtx() # build the sensing matrix
 #problem.temp_step(time_step=1.0, T_source=400.0)
 #problem.temp_square_pulse(time_init=1, time_end=2, T_source=400) # create a source term
 problem.temp_hann_pulse(time_init=1.0, time_end=3.0, T_source=400.0) # create a source term
 #problem.temp_random(std_temp=20.0, seed=0)
-#problem.temp_analytical_step(time_step = 1, T_source=300, T_base=400)
 problem.noiseless_meas() # compute true measurement
 problem.add_noise(snr = 30) # add some noise
-
 #%% Set up the inverse problem
 u, s, v = csvd(problem.A[1:, :])
 lam_opt = gcv_lambda(u, s, problem.b_noisy[1:]-problem.T0, plot_gcvfun = True, r_min=0.004)

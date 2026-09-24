@@ -34,3 +34,10 @@ ref.plot_measured_field(coord = ref.coord, pres = ref.b_true)
 plt.show()
 
 
+print(problem.A.shape)
+print(problem.b_true.shape)
+print(problem.b_noisy.shape)
+print(coord_recon.shape)
+print(pres_recon.shape)
+
+

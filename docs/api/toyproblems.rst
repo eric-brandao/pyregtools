@@ -12,3 +12,4 @@ with known reference solutions.
    multi_decay
    sound_field_2D
    image_deblur
+   ct_recon

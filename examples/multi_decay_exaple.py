@@ -18,6 +18,9 @@ col_norms = np.linalg.norm(problem.A, axis=0)
 B = problem.A @ np.diag(1/col_norms)
 
 print(problem.A.shape)
+print(problem.b_true.shape)
+print(problem.b_noisy.shape)
+
 
 plt.figure(figsize = (6,3))
 #plt.stem(col_norms)

@@ -548,7 +548,7 @@ class MultiDecay:
             =
             10\log_{10}
             \left(
-                \frac{b(t)}{\max b(t)}
+                \frac{b(t)}{\max (b(t))}
             \right).
 
         The individual exponential components and the integrated noise
