@@ -10,7 +10,9 @@ Per Christian Hansen, DTU Compute, October 27, 2010 - originally implemented in 
 """
 
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
+import warnings
 
 def landweber(A, b, omega = 0.1, x0 = None, max_it = 50):
     """ Landweber iterative solver
@@ -89,26 +91,47 @@ def cgls(A, b, x0 = None, max_it = 50):
     
     As in Sec 6.3.2 of Discrete Inverse Problems
     """
+    Aop = scipy.sparse.linalg.aslinearoperator(A)
+    # Handle complex or real data
+    dtype = np.result_type(Aop.dtype, b.dtype)
     if x0 is None:
-        x0 = np.zeros(A.shape[1], dtype = complex)
-    Ah = np.conj(A.T) # Hermitian of A
+        x0 = np.zeros(Aop.shape[1], dtype=dtype)
+    else:
+        dtype = np.result_type(dtype, x0.dtype)
+        x0 = np.asarray(x0, dtype=dtype)
+
+    #Ah = A.conj().T # Hermitian of A
     # initialize solution vector
-    x_sol = np.zeros((A.shape[1], max_it), dtype = complex)
+    x_sol = np.zeros((A.shape[1], max_it), dtype = dtype)
     res_norms = np.zeros(max_it)
     sol_norms = np.zeros(max_it)
     xk = np.copy(x0)
     # loop
-    rk = b - A @ xk
-    dk = Ah @ rk
+    #rk = b - A @ xk
+    #dk = Ah @ rk
+    rk = b - Aop.matvec(xk)
+    dk = Aop.rmatvec(rk)
     normr2 = np.linalg.norm(dk)**2
+
+    n_it = 0
     for k in range(max_it):
-        # past_residual = residual
-        # d_k = Ah @ residual 
-        Ad = A @ dk
-        alphak = normr2/(np.linalg.norm(Ad)**2)
+        # Exact convergence
+        if normr2 == 0:
+            break
+        #Ad = A @ dk
+        Ad = Aop.matvec(dk)
+        normAd2 = np.linalg.norm(Ad)**2
+        # Breakdown
+        if normAd2 == 0:
+            warnings.warn("CGLS iteration terminated because the search direction "
+            "satisfies A @ d = 0.",RuntimeWarning)
+            break
+
+        alphak = normr2/normAd2
         xk += alphak * dk
         rk -= alphak * Ad #A @ dk
-        sk = Ah @ rk
+        #sk = Ah @ rk
+        sk = Aop.rmatvec(rk)
         normr2_new = np.linalg.norm(sk)**2
         betak = normr2_new/normr2
         normr2 = normr2_new
@@ -117,7 +140,8 @@ def cgls(A, b, x0 = None, max_it = 50):
         x_sol[:,k] = xk
         res_norms[k] = np.linalg.norm(rk)
         sol_norms[k] = np.linalg.norm(xk)
-    return x_sol, sol_norms, res_norms
+        n_it = k + 1
+    return x_sol[:, :n_it], sol_norms[:n_it], res_norms[:n_it]
 
 def cgls2(A, b, x0 = None, max_it = 50):
     """ Conjugate Gradient Least-Squares
