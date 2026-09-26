@@ -19,52 +19,94 @@ def landweber(A, b, omega = 0.1, x0 = None, max_it = 50):
     
     As in Eq. (6.1) of Discrete Inverse Problems
     """
+    if omega <= 0:
+        raise ValueError("omega must be positive.")
+    b = np.asarray(b)
+    is_operator = isinstance(A, scipy.sparse.linalg.LinearOperator)
+    Aop = scipy.sparse.linalg.aslinearoperator(A)
+    if not is_operator:
+        A_norm = np.linalg.norm(A, ord=2)
+        omega_max = 2.0 / A_norm**2
+        if omega >= omega_max:
+            raise ValueError(f"omega must satisfy 0 < omega < {omega_max:.6e}.")
+
+    dtype = np.result_type(Aop.dtype, b.dtype)
     if x0 is None:
-        x0 = np.zeros(A.shape[1], dtype = complex)
-    Ah = np.conj(A.T) # Hermitian of A
-    AhA_norm = np.linalg.norm(Ah@A)
-    # Check omega
-    if omega<=0 or omega>=2/AhA_norm:
-        raise ValueError(r"$\omega$ must be a value between 0 and {}".format(2/AhA_norm))   
-    # initialize solution vector
-    x_sol = np.zeros((A.shape[1], max_it), dtype = complex)
+        x0 = np.zeros(Aop.shape[1], dtype=dtype)
+    else:
+        x0 = np.asarray(x0)
+        dtype = np.result_type(dtype, x0.dtype)
+        x0 = np.asarray(x0, dtype=dtype)
+
+    # initialize solution vector, residual norm vector and sol. norm vector
+    x_sol = np.zeros((Aop.shape[1], max_it), dtype=dtype)
+    res_norms = np.zeros(max_it)
+    sol_norms = np.zeros(max_it)
     xk = np.copy(x0)
     # loop
     for k in range(max_it):
-        residual = b - A @ xk
-        xk += omega * Ah @ residual
+        rk = b - Aop.matvec(xk)
+        xk += omega * Aop.rmatvec(rk)
         x_sol[:,k] = xk
-    return x_sol
+        sol_norms[k] = np.linalg.norm(xk)
+        res_norms[k] = np.linalg.norm(Aop.matvec(xk)-b)
+    return x_sol, sol_norms, res_norms
 
-def landweber_cimmino(A, b, omega = 0.1, x0 = None, max_it = 50):
+def landweber_cimmino(A, b, D=None, omega = 0.1, x0 = None, max_it = 50):
     """ Landweber & Cimmino iterative solver
     
     As in Eq. (6.1b) of Discrete Inverse Problems
     """
+    if omega <= 0:
+        raise ValueError("omega must be positive.")
+    b = np.asarray(b)
+    is_operator = isinstance(A, scipy.sparse.linalg.LinearOperator)
+    Aop = scipy.sparse.linalg.aslinearoperator(A)
+
+    if D is None:
+        D = get_D_for_cimmino(A)
+    else:
+        D = np.asarray(D)
+
+    if not is_operator:
+        A_norm = np.linalg.norm(A, ord=2)
+        B = np.sqrt(D)[:, None] * A
+        B_norm = np.linalg.norm(B, ord=2)
+        omega_max = 2.0 / B_norm**2
+        if omega >= omega_max:
+            raise ValueError(f"omega must satisfy 0 < omega < {omega_max:.6e}.")
+
+    dtype = np.result_type(Aop.dtype, b.dtype)
     if x0 is None:
-        x0 = np.zeros(A.shape[1], dtype = complex)
-    Ah = np.conj(A.T) # Hermitian of A
-    AhA_norm = np.linalg.norm(Ah@A)
-    # Check omega
-    if omega<=0 or omega>=2/AhA_norm:
-        raise ValueError(r"$\omega$ must be a value between 0 and {}".format(2/AhA_norm))
-    # matrix D
-    D = np.zeros(A.shape[0])
-    for row in range(A.shape[0]):
-        if not np.any(A[row,:]):
-            D[row] = 0
-        else:
-            row_norm = np.linalg.norm(A[row,:])
-            D[row] = 1/(A.shape[0]*row_norm**2)
-    # initialize solution vector
-    x_sol = np.zeros((A.shape[1], max_it), dtype = complex)
+        x0 = np.zeros(Aop.shape[1], dtype=dtype)
+    else:
+        x0 = np.asarray(x0)
+        dtype = np.result_type(dtype, x0.dtype)
+        x0 = np.asarray(x0, dtype=dtype)
+
+    # initialize solution vector, residual norm vector and sol. norm vector
+    x_sol = np.zeros((Aop.shape[1], max_it), dtype=dtype)
+    res_norms = np.zeros(max_it)
+    sol_norms = np.zeros(max_it)
     xk = np.copy(x0)
     # loop
     for k in range(max_it):
-        residual = b - A @ xk
-        xk += omega * Ah @ np.diag(D) @ residual
+        rk = b - Aop.matvec(xk)
+        xk += omega * Aop.rmatvec(D * rk)
         x_sol[:,k] = xk
-    return x_sol
+        sol_norms[k] = np.linalg.norm(xk)
+        res_norms[k] = np.linalg.norm(Aop.matvec(xk)-b)
+    return x_sol, sol_norms, res_norms
+
+def get_D_for_cimmino(A):
+    is_operator = isinstance(A, scipy.sparse.linalg.LinearOperator)
+    if is_operator:
+        raise ValueError("D can not be computed when A is a LinearOperator. It should be provided.")
+    row_norms = np.linalg.norm(A, axis=1)
+    D = np.zeros(A.shape[0])
+    nonzero = row_norms > 0
+    D[nonzero] = 1.0 / (A.shape[0] * row_norms[nonzero]**2)
+    return D
 
 def art_solver(A, b, x0 = None, max_it = 50):
     """ Kaczmarz’s method or Algebraic Reconstruction Technique (ART)
@@ -91,12 +133,14 @@ def cgls(A, b, x0 = None, max_it = 50):
     
     As in Sec 6.3.2 of Discrete Inverse Problems
     """
+    b = np.asarray(b)
     Aop = scipy.sparse.linalg.aslinearoperator(A)
     # Handle complex or real data
     dtype = np.result_type(Aop.dtype, b.dtype)
     if x0 is None:
         x0 = np.zeros(Aop.shape[1], dtype=dtype)
     else:
+        x0 = np.asarray(x0)
         dtype = np.result_type(dtype, x0.dtype)
         x0 = np.asarray(x0, dtype=dtype)
 
@@ -143,40 +187,6 @@ def cgls(A, b, x0 = None, max_it = 50):
         n_it = k + 1
     return x_sol[:, :n_it], sol_norms[:n_it], res_norms[:n_it]
 
-def cgls2(A, b, x0 = None, max_it = 50):
-    """ Conjugate Gradient Least-Squares
-    
-    As in Sec 6.3.2 of Discrete Inverse Problems
-    """
-    if x0 is None:
-        x0 = np.zeros(A.shape[1], dtype = complex)
-    Ah = np.conj(A.T) # Hermitian of A
-    # initialize solution vector
-    x_sol = np.zeros((A.shape[1], max_it), dtype = complex)
-    res_norms = np.zeros(max_it)
-    sol_norms = np.zeros(max_it)
-    xk = np.copy(x0)
-    # loop
-    rk = b - A @ xk
-    dk = Ah @ rk
-    normr2 = np.linalg.norm(dk)**2;
-    for k in range(max_it):
-        # Update x and r vectors.
-        Ad = A @ dk
-        alpha = normr2/(np.conj(Ad.T) @ Ad)
-        xk += alpha*dk
-        rk -= alpha*Ad
-        s = Ah @ rk
-        # Update d vector.
-        normr2_new = np.linalg.norm(s)**2
-        beta = normr2_new/normr2
-        normr2 = normr2_new;
-        dk = s + beta*dk
-        # fill returns
-        x_sol[:,k] = xk
-        res_norms[k] = np.linalg.norm(rk)
-        sol_norms[k] = np.linalg.norm(xk)
-    return x_sol, sol_norms, res_norms
 
 class IterativeSolvers(object):
     """ Solve regularized problems with iterative solvers

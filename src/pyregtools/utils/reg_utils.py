@@ -6,7 +6,9 @@
 """
 
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
+
 
 def plot_colvecs(U, rows = 4, cols = 4, figsize = (8,5), ylim = (-0.2,0.2)):
     """ Plot the column vectors of a matrix.
@@ -101,6 +103,50 @@ def plot_picard(u,s,b, noise_norm = None, figsize = (5,4)):
     plt.title('cond(A) = {0:.2f}'.format(cond_number), loc='right')
     plt.grid()
     plt.tight_layout()
+
+def largest_singular_value(A):
+    """Compute the largest singular value of a matrix or linear operator.
+
+    For an explicit matrix, the largest singular value is computed as the
+    spectral norm of the matrix. For a
+    :class:`scipy.sparse.linalg.LinearOperator`, the largest singular value
+    is estimated iteratively using :func:`scipy.sparse.linalg.svds`.
+
+    Parameters
+    ----------
+    A : ndarray or scipy.sparse.linalg.LinearOperator
+        Matrix or linear operator with shape ``(M, L)``.
+
+    Returns
+    -------
+    s_max : float
+        Largest singular value of ``A``.
+
+    Notes
+    -----
+    The largest singular value is equal to the spectral norm of ``A``,
+
+    .. math::
+
+        \\sigma_{\\max}(A) = \\|A\\|_2.
+
+    For a ``LinearOperator``, the singular value is computed without
+    explicitly constructing the matrix. This can be useful for matrix-free
+    iterative methods that require an estimate of the spectral norm.
+
+    Examples
+    --------
+    Compute the largest singular value of an explicit matrix:
+
+    >>> A = np.array([[1.0, 2.0], [3.0, 4.0]])
+    >>> s_max = largest_singular_value(A)
+    """
+    if isinstance(A, scipy.sparse.linalg.LinearOperator):
+        s = scipy.sparse.linalg.svds(A, k=1, which="LM", return_singular_vectors=False)
+        s_max = s[0]
+    else:
+        s_max = np.linalg.norm(A, ord=2)
+    return s_max
     
 def nmse(x_meas, x_ref):
     """ Computes the normalized mean squared error (NMSE).

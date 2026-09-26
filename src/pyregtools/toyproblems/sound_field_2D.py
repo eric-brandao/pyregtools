@@ -323,7 +323,7 @@ class SoundField2D:
 
         .. math::
 
-            \\tilde{a}_i = \\sin^2(q\\theta_i),
+            \\tilde{a}_i = \\sin^2(q\\theta_i)/360,
 
         where :math:`q` is the amplitude modulation factor and
         :math:`\\theta_i = 2\\pi i/N`, with :math:`i=0,\\ldots,N-1`.
@@ -347,7 +347,7 @@ class SoundField2D:
         a full revolution.
         """
         theta = 2 * np.pi * np.arange(360) / 360
-        amps = np.sin(factor * theta)**2
+        amps = (1/len(theta))*np.sin(factor * theta)**2
         self.compute_pres(theta_deg = np.rad2deg(theta), amps = amps)
             
     def add_noise(self, snr=30, seed=0):
