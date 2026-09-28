@@ -242,13 +242,43 @@ class CTReconstruction:
         max_offset = self.size / np.sqrt(2)
         offset_edges = np.linspace(-max_offset, max_offset, n_rays + 1)
         self.offsets = 0.5 * (offset_edges[:-1] + offset_edges[1:])
-        n_meas = len(self.angles) * n_rays
+        n_meas = len(self.angles) * len(self.offsets)
         self.A = np.zeros((n_meas, self.n_pixels))
         row = 0
-        for angle in self.angles:
+        for i in range(n_meas):
+            self.A[i, :] = self.get_row(i)
+        """ for angle in self.angles:
             for offset in self.offsets:
                 self.A[row, :] = self._ray_pixel_lengths(theta_deg=angle,offset=offset)
                 row += 1
+         """        
+
+    def get_row(self, i):
+        """Return one row of the CT sensing matrix.
+
+        Construct the row of the sensing matrix associated with measurement
+        index ``i``. The measurement index is mapped to an angle and detector
+        offset according to the ordering used to construct the sensing matrix.
+
+        Each element of the returned row contains the intersection length of
+        the corresponding ray with one pixel of the discretized image.
+
+        Parameters
+        ----------
+        i : int
+            Measurement index.
+
+        Returns
+        -------
+        row : ndarray, shape (n_pixels,)
+            Row of the CT sensing matrix containing the ray-pixel intersection
+            lengths.
+        """
+        n_offsets = len(self.offsets)
+        angle_idx = i // n_offsets
+        offset_idx = i % n_offsets
+        return self._ray_pixel_lengths(theta_deg=self.angles[angle_idx],
+            offset=self.offsets[offset_idx])
 
     def _ray_pixel_lengths(self, theta_deg, offset):
         r"""

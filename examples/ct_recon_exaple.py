@@ -49,3 +49,31 @@ ax[1].imshow(x_est, origin="lower")
 ax[1].set_title("IT solver")
 plt.tight_layout()
 plt.show()
+
+
+#%%
+""" from pyregtools.utils import nmse
+problem = CTReconstruction(shape=(64, 64), size=1.0)
+problem.sensing_mtx(angles=np.linspace(0, 180, 64, endpoint=False),  n_rays=64)
+problem.create_phantom()
+problem.noiseless_meas()
+problem.add_noise(photon_count=1e5, seed=0)
+X, sol_rows, res_rows = art_solver(problem.b_noisy, get_row=problem.get_row,
+                            n_unknowns=problem.n_pixels, max_it=20)
+error_hist = np.zeros(X.shape[1])
+for k in range(X.shape[1]):
+    error_hist[k] = nmse(X[:,k], problem.x_true.ravel(order = 'C'))
+
+plt.figure()
+plt.semilogy(error_hist, '-ok')
+plt.title("{} ID ({})".format(np.amin(error_hist), np.argmin(error_hist)))
+
+x_est = np.reshape(X[:,11], problem.shape)
+fig, ax = plt.subplots(1, 2, figsize=(8, 4))
+ax[0].imshow(problem.x_true, origin="lower")
+ax[0].set_title("True")
+ax[1].imshow(x_est, origin="lower")
+ax[1].set_title("ART solver (shape: {})".format(problem.A.shape))
+plt.tight_layout()
+
+plt.show() """

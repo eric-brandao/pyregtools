@@ -3,9 +3,10 @@ import scipy
 from pyregtools.regsolvers import csvd
 from pyregtools.utils import nmse, mae
 import matplotlib.pyplot as plt
-from pyregtools.iterativesolvers import cgls, landweber, landweber_cimmino
+from pyregtools.iterativesolvers import cgls, landweber, landweber_cimmino, art_solver
 from pyregtools.toyproblems.sound_field_2D import SoundField2D
 from pyregtools.toyproblems.image_deblur import ImageDeblur
+from pyregtools.toyproblems.ct_recon import CTReconstruction
 
 def import_mat_data():
     """ import reference data from matlab and return relevant data
@@ -239,3 +240,78 @@ def test_landweber_cimmino_cplx():
     # NMSE
     nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
     assert nmse_val < 5e-4
+
+def test_art_iterations():
+    """Test ART solver with analytical iterations."""
+    A = np.array([
+        [1.0, 0.0],
+        [0.0, 0.0],
+        [1.0, 1.0],
+    ])
+    b = np.array([1.0, 0.0, 2.0])
+    x_sol, sol_norms, res_norms = art_solver(b, A=A, max_it=2)
+    assert np.isrealobj(x_sol)
+    x1 = np.array([1.5, 0.5])
+    x2 = np.array([1.25, 0.75])
+    expected = np.column_stack((x1, x2))
+    expected_sol_norms = np.linalg.norm(expected, axis=0)
+    expected_res_norms = np.linalg.norm(A @ expected - b[:, None], axis=0)
+    np.testing.assert_allclose(sol_norms, expected_sol_norms)
+    np.testing.assert_allclose(res_norms, expected_res_norms)
+    np.testing.assert_allclose(x_sol, expected, rtol=1e-14, atol=1e-14)
+
+def test_art_get_row():
+    """Test ART solver with analytical iterations - matrix independent version."""
+    A = np.array([
+        [1.0, 0.0],
+        [1.0, 1.0],
+    ])
+    b = np.array([1.0, 2.0])
+
+    def get_row(i):
+        return A[i, :]
+
+    x_matrix, sol_matrix, res_matrix = art_solver(b, A=A, max_it=2)
+
+    x_rows, sol_rows, res_rows = art_solver(b, get_row=get_row, 
+                                            n_unknowns=A.shape[1],  max_it=2)
+    np.testing.assert_allclose(x_rows, x_matrix)
+    np.testing.assert_allclose(sol_rows, sol_matrix)
+    np.testing.assert_allclose(res_rows, res_matrix)
+
+def test_art_cplx():
+    """ test ART solver for complex 2D sound field data
+    """
+    #setup toy problem
+    problem = SoundField2D(c0 = 340, freq = 2000) 
+    problem.set_mic_array(x_len = 0.3, z_len = 0.3, n_x = 15, n_z = 15)
+    problem.smooth_sf(factor = -2)
+    problem.add_noise(snr = 30, seed = 0)
+    # Run CGLS solver - 8 iterations is optimal in this particular case
+    problem.get_sens_mtx(nwaves = 180)
+    X_py, _, _ = art_solver(problem.b_true, A= problem.A, max_it = 8)
+    
+    # Reconstruct sound field with 8-th iteration
+    coord_recon, p_recon = problem.reconstruct_pres(X_py[:,-1], x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
+    # Create a reference sound field
+    ref = SoundField2D(c0 = 340, freq = problem.freq) # instantiate
+    ref.set_mic_array(x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
+    ref.smooth_sf(factor = -2)
+    # NMSE
+    nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
+    assert nmse_val < 5e-4
+
+def test_art_ct():
+    """ Test ART solver with CT reconstruction problem
+    """
+    problem = CTReconstruction(shape=(16, 16), size=1.0)
+    problem.sensing_mtx(angles=np.linspace(0, 180, 16, endpoint=False),  n_rays=32)
+    problem.create_phantom()
+    problem.noiseless_meas()
+    problem.add_noise(photon_count=1e5, seed=0)
+    x_matrix, sol_matrix, res_matrix = art_solver(problem.b_noisy, A= problem.A, max_it = 20)
+    x_rows, sol_rows, res_rows = art_solver(problem.b_noisy, get_row=problem.get_row,
+                              n_unknowns=problem.n_pixels, max_it=20)
+    np.testing.assert_allclose(x_rows, x_matrix)
+    np.testing.assert_allclose(sol_rows, sol_matrix)
+    np.testing.assert_allclose(res_rows, res_matrix)
