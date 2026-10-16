@@ -100,8 +100,8 @@ def plot_picard(u,s,b, noise_norm = None, figsize = (5,4)):
     plt.ylim((minval, 100*s[0]))
     plt.xlabel(r'$i$')
     plt.ylabel(r'$\sigma_i$, $|U^Tb|$, $|U^Tb|/\sigma_i$')
-    plt.title('cond(A) = {0:.2f}'.format(cond_number), loc='right')
-    plt.grid()
+    plt.title('cond(A) = {0:.2e}'.format(cond_number), loc='right')
+    plt.grid(linestyle = '--')
     plt.tight_layout()
 
 def largest_singular_value(A):
@@ -148,7 +148,7 @@ def largest_singular_value(A):
         s_max = np.linalg.norm(A, ord=2)
     return s_max
     
-def nmse(x_meas, x_ref):
+def nmse_fun(x_meas, x_ref, axis = None):
     """ Computes the normalized mean squared error (NMSE).
 
     The NMSE is given by
@@ -169,16 +169,24 @@ def nmse(x_meas, x_ref):
             a quantity of interest.
         x_ref : ndarray, shape (N,)
             Reference value for the measured quantity.
+        axis : int or tuple of int, optional
+            Axis or axes along which the mean absolute error is computed.
+            If ``None``, the error is computed over the entire array.
+            Default is ``None``.
     
     Returns
     -------
-        nnse : float
-            Estimated NMSE.
+        nmse : float or ndarray
+            Mean absolute error. A scalar is returned when ``axis=None``;
+            otherwise, an array containing the error along the specified
+            axis or axes.
     """
-    nmse = (np.linalg.norm(x_meas-x_ref)/np.linalg.norm(x_ref))**2
+    x_ref = np.asarray(x_ref)
+    x_meas = np.asarray(x_meas)
+    nmse = (np.linalg.norm(x_meas-x_ref, axis=axis)/np.linalg.norm(x_ref, axis=axis))**2
     return nmse
 
-def mae(x_meas, x_ref):
+def mae_fun(x_meas, x_ref, axis = None):
     """ Computes the mean absolute error (MAE).
 
     The MAE is given by
@@ -199,14 +207,22 @@ def mae(x_meas, x_ref):
             a quantity of interest.
         x_ref : ndarray, shape (N,)
             Reference value for the measured quantity.
-    
+        axis : int or tuple of int, optional
+            Axis or axes along which the mean absolute error is computed.
+            If ``None``, the error is computed over the entire array.
+            Default is ``None``.
+
     Returns
     -------
-        mae : float
-            Estimated MAE.
+        mae : float or ndarray
+            Mean absolute error. A scalar is returned when ``axis=None``;
+            otherwise, an array containing the error along the specified
+            axis or axes.
     """
+    x_ref = np.asarray(x_ref)
+    x_meas = np.asarray(x_meas)
     n_el = x_ref.size
-    mae = np.linalg.norm(x_meas-x_ref)/n_el
+    mae = np.linalg.norm(x_meas-x_ref, axis = axis)/n_el
     return mae
 
 def nmse_freq(x_meas, x_ref):
@@ -232,10 +248,10 @@ def nmse_freq(x_meas, x_ref):
     _, nfreq = x_meas.shape
     nmse_freq = np.zeros(nfreq)
     for jf in np.arange(nfreq):
-        nmse_freq[jf] = nmse(x_meas[:,jf], x_ref[:,jf])
+        nmse_freq[jf] = nmse_fun(x_meas[:,jf], x_ref[:,jf])
     return nmse_freq
 
-def add_gaussian_noise(b_true, snr=20, seed=0):
+def add_gaussian_noise(b_true, snr=20, seed=10):
     """
     Add real or complex Gaussian noise at a prescribed SNR.
 

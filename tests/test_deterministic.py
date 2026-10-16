@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 from pyregtools.regsolvers import csvd, gram_matrix
-from pyregtools.utils import nmse, mae, plot_colvecs, plot_picard
+from pyregtools.utils import nmse_fun, mae_fun, plot_colvecs, plot_picard
 from pyregtools.regsolvers import tikhonov, tikhonov_analytic, least_sq
 
 
@@ -54,7 +54,7 @@ def test_error_metrics():
     """
     np.random.seed(0)
     x = np.random.normal(loc = 0, scale = 1, size = 100)
-    nmse(x, x) == 0 and mae(x, x) == 0
+    nmse_fun(x, x) == 0 and mae_fun(x, x) == 0
 
 def test_equiv_form():
     """ Test Tikhonov solvers when lambda = 0 against least-squares.

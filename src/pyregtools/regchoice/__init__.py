@@ -3,4 +3,5 @@ from .reg_choice import (
     gcv_lambda,
     discrep,
     ncp,
+    lcurve_discrete,
 )

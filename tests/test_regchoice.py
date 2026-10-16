@@ -3,7 +3,7 @@ from scipy.io import loadmat
 from pyregtools.regchoice import l_curve, gcv_lambda, discrep, ncp
 from pyregtools.regsolvers import csvd, tikhonov, tikhonov_analytic, sklearn_ridge, sklearn_ridge_c
 from pyregtools.regsolvers import cvx_reg, tsvd, ssvd, cvx_constrained
-from pyregtools.utils import nmse
+from pyregtools.utils import nmse_fun
 import matplotlib.pyplot as plt
 
 def import_mat_data():
@@ -70,7 +70,7 @@ def test_tikhonov():
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     U, s, V = csvd(A)
     x_tik_py = tikhonov(U, s, V, b_noisy, labda)
-    nmse = np.linalg.norm(x_tik_py-x_tik)/np.linalg.norm(x_tik)
+    nmse = nmse_fun(x_tik_py, x_tik) 
     assert np.allclose(x_tik_py, x_tik, rtol=1e-6, atol=1e-8)
 
 def test_tikhonov_analytic():
@@ -87,7 +87,7 @@ def test_sklearn_ridge():
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = sklearn_ridge(A, b_noisy, labda)
-    assert nmse(x_tik_py, x_tik) < 0.05
+    assert nmse_fun(x_tik_py, x_tik) < 0.05
 
 def test_sklearn_ridge_c():
     """ Test sklearn_ridge_c function
@@ -95,7 +95,7 @@ def test_sklearn_ridge_c():
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = sklearn_ridge_c(A, b_noisy, labda)
-    assert nmse(x_tik_py, x_tik) < 0.05
+    assert nmse_fun(x_tik_py, x_tik) < 0.05
 
 def test_tikhonov_cvx():
     """ Test tikhonov cvx function. 
@@ -105,7 +105,7 @@ def test_tikhonov_cvx():
     x, A, b, b_noisy, x_true, snr, n, lam_dp, lam_lc, lam_gcv, lam_ncp,\
         x_tik, x_k, labda, num_svd_comp  = import_mat_data()
     x_tik_py = cvx_reg(A, b, labda, is_lasso = False, is_complex = False)
-    assert nmse(x_tik_py, x_tik) < 0.05
+    assert nmse_fun(x_tik_py, x_tik) < 0.05
 
 def test_tsvd():
     """ Test TSVD function

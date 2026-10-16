@@ -4,7 +4,7 @@ This module provides iterative methods for solving linear inverse problems
 
 .. math::
 
-    A x \\simeq b,
+    \\mathbf{A x} \\simeq \\mathbf{b},
 
 where :math:`A \\in \\mathbb{C}^{M \\times L}` is the forward operator,
 :math:`b \\in \\mathbb{C}^{M}` is the measured data, and

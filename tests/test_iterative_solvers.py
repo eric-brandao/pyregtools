@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 from pyregtools.regsolvers import csvd
-from pyregtools.utils import nmse, mae
+from pyregtools.utils import nmse_fun, mae_fun
 import matplotlib.pyplot as plt
 from pyregtools.iterativesolvers import cgls, landweber, landweber_cimmino, art_solver
 from pyregtools.toyproblems.sound_field_2D import SoundField2D
@@ -33,8 +33,8 @@ def test_cgls_true():
     nmse_v = np.zeros(X_py.shape[1])
     mae_v = np.zeros(X_py.shape[1])
     for k in range(X_py.shape[1]):
-        nmse_v[k] = nmse(x_meas = X_py[:,k], x_ref = x_true)
-        mae_v[k] = mae(x_meas = X_py[:,k], x_ref = x_true)
+        nmse_v[k] = nmse_fun(x_meas = X_py[:,k], x_ref = x_true)
+        mae_v[k] = mae_fun(x_meas = X_py[:,k], x_ref = x_true)
     assert np.all(nmse_v[8:] < 1e-4)
     assert np.all(mae_v[8:] < 1e-3)
 
@@ -63,7 +63,7 @@ def test_cgls_cplx():
     ref.set_mic_array(x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
     ref.smooth_sf(factor = -2)
     # NMSE
-    nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
+    nmse_val = nmse_fun(x_meas=p_recon, x_ref = ref.b_true)
     assert nmse_val < 5e-4
 
 def test_cgls_linear_operator():
@@ -171,7 +171,7 @@ def test_landweber_cplx():
     ref.set_mic_array(x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
     ref.smooth_sf(factor = -2)
     # NMSE
-    nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
+    nmse_val = nmse_fun(x_meas=p_recon, x_ref = ref.b_true)
     assert nmse_val < 5e-4
 
 def test_landweber_linear_operator():
@@ -238,7 +238,7 @@ def test_landweber_cimmino_cplx():
     ref.set_mic_array(x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
     ref.smooth_sf(factor = -2)
     # NMSE
-    nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
+    nmse_val = nmse_fun(x_meas=p_recon, x_ref = ref.b_true)
     assert nmse_val < 5e-4
 
 def test_art_iterations():
@@ -298,7 +298,7 @@ def test_art_cplx():
     ref.set_mic_array(x_len = 0.5, z_len = 0.5, n_x = 50, n_z = 50)
     ref.smooth_sf(factor = -2)
     # NMSE
-    nmse_val = nmse(x_meas=p_recon, x_ref = ref.b_true)
+    nmse_val = nmse_fun(x_meas=p_recon, x_ref = ref.b_true)
     assert nmse_val < 5e-4
 
 def test_art_ct():

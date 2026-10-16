@@ -1,29 +1,21 @@
 """
-This module provides methods for automatically selecting the Tikhonov regularization
-parameter :math:`\\lambda` in discrete inverse problems.
+Regularization parameter-choice methods for discrete inverse problems.
 
-The parameter-choice methods implemented in this module are currently focused on selecting 
-the regularization parameter :math:`\\lambda` for Tikhonov regularization. 
-Tikhonov regularization provides a smooth filtering of the singular-value components 
-and is one of the most widely used approaches for stabilizing discrete ill-posed 
-inverse problems [2]_. In contrast, the selection of the discrete truncation parameter 
-used in truncated singular value decomposition (TSVD) is not currently implemented. 
-Support for automatic selection of the TSVD truncation parameter may be included in future 
-versions of PyRegTools.
+This module provides methods for automatically selecting regularization
+parameters in discrete inverse problems [1]_. It includes methods for selecting
+the Tikhonov regularization parameter :math:`\\lambda` and for locating the
+corner of discrete L-curves associated with regularization paths.
 
 The implemented criteria are:
 
 * discrepancy principle (DP),
 * L-curve criterion,
-* generalized cross-validation (GCV), and
-* normalized cumulative periodogram (NCP).
+* generalized cross-validation (GCV),
+* normalized cumulative periodogram (NCP), and
+* triangle method for discrete L-curves.
 
-The implementations are largely based on the algorithms described in
-Hansen's Regularization Tools for MATLAB [1]_ and on the numerical
-treatment of discrete inverse problems presented in [2]_.
-
-Most parameter-choice methods implemented here operate on the singular
-value decomposition (SVD) of the forward matrix
+For Tikhonov regularization, most parameter-choice methods operate on the
+singular value decomposition (SVD) of the forward matrix
 
 .. math::
 
@@ -49,22 +41,33 @@ This two-stage procedure provides an initial exploration of the
 regularization-parameter space followed by a refined estimate of the
 selected parameter.
 
-Differently from the implementation in Ref. [1]_, PyRegTools allows the 
-user to specify a lower bound for the regularization parameter :math:`\\lambda`, 
-defined as a fraction of the largest singular value. This additional constraint 
-reduces the susceptibility of the parameter-choice methods to spurious local minima 
-or maxima of :math:`R(\\lambda)` occurring at values of :math:`\\lambda` that are 
-too small to provide meaningful regularization.
+Differently from the implementation in Ref. [2]_, PyRegTools allows the
+user to specify a lower bound for the Tikhonov regularization parameter
+:math:`\\lambda`, defined as a fraction of the largest singular value.
+This additional constraint reduces the susceptibility of the
+parameter-choice methods to spurious local minima or maxima of
+:math:`R(\\lambda)` occurring at values of :math:`\\lambda` that are too
+small to provide meaningful regularization.
 
+For regularization methods that generate a discrete sequence of solutions,
+the L-curve corner can instead be estimated directly from the corresponding
+residual and solution norms. PyRegTools implements the triangle method of
+Castellanos et al. [3]_ for this purpose. This approach can be applied to
+iterative regularization methods as well as truncated singular value
+decomposition (TSVD).
 
 References
 ----------
-.. [1] P. C. Hansen, "Regularization Tools: A Matlab package for
+.. [1] P. C. Hansen, *Discrete Inverse Problems: Insight and Algorithms*,
+       SIAM, Philadelphia, 2010.
+
+.. [2] P. C. Hansen, "Regularization Tools: A Matlab package for
        analysis and solution of discrete ill-posed problems,"
        Numerical Algorithms, vol. 6, pp. 1--35, 1994.
 
-.. [2] P. C. Hansen, Discrete Inverse Problems: Insight and Algorithms,
-       SIAM, Philadelphia, 2010.
+.. [3] J. L. Castellanos, S. Gómez, and V. Guerra,
+       "The triangle method for finding the corner of the L-curve,"
+       Applied Numerical Mathematics, vol. 43, pp. 359--373, 2002.
 """
 
 import numpy as np
@@ -708,7 +711,7 @@ def curvature(lambda_val, s, beta, xi):
     return curv
 
 def gcv_lambda(u, s, b, r_min = 16 * np.finfo(float).eps, 
-               plot_gcvfun = False, plot_in_color = True):
+               plotit = False, plot_in_color = True):
     """
     Select the Tikhonov regularization parameter using generalized
     cross-validation (GCV) [1]_.
@@ -735,7 +738,7 @@ def gcv_lambda(u, s, b, r_min = 16 * np.finfo(float).eps,
         value. The lower bound of the initial search grid is constrained by
         ``s[0] * r_min``, where ``eps`` denotes floating-point machine
         precision.
-    plot_gcvfun : bool, default=False
+    plotit : bool, default=False
         If ``True``, plot the GCV function together with the selected
         regularization parameter.
     plot_in_color : bool, default=True
@@ -815,7 +818,7 @@ def gcv_lambda(u, s, b, r_min = 16 * np.finfo(float).eps,
     # Final evalutaion of GCV funtion
     minG = gcvfun(reg_min, s, beta[:p], beta_perp_sq, False, M-L)
 
-    if plot_gcvfun:
+    if plotit:
         if plot_in_color:
             color_dict = dict(g_c = 'dodgerblue', lam_c = 'r')
         else:
@@ -930,7 +933,7 @@ def gcvfun(lambda_val, s, beta, beta_perp_sq, check_s_sq = False, ml = 0):
     return G
 
 def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
-        plotcp = False, plot_in_color = True):
+        plotit = False, plot_in_color = True):
     """
     Select the Tikhonov regularization parameter using the normalized
     cumulative periodogram (NCP) criterion.
@@ -957,7 +960,7 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
         value. The lower bound of the initial search grid is constrained by
         ``s[0] * r_min``, where ``eps`` denotes floating-point machine
         precision.
-    plotcp : bool, default=False
+    plotit : bool, default=False
         If ``True``, plot the normalized cumulative periodogram associated
         with the selected regularization parameter together with the
         theoretical white-noise NCP.
@@ -1021,7 +1024,7 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
     # Final evalutaion of NCP funtion
     dist, cp_opt, cp_white = ncpfun(reg_min, s,  beta, u)
     # Print 
-    if plotcp:
+    if plotit:
         if plot_in_color:
             color_dict = dict(cp_opt_c = 'dodgerblue', c_w_c = 'k')
         else:
@@ -1038,7 +1041,7 @@ def ncp(u, s, b, r_min = 16 * np.finfo(float).eps,
         plt.grid(linestyle = '--')
         plt.xlabel('i')
         plt.ylabel(r'$\mathbf{{c}}(\mathbf{{r}}_{{\lambda}})$')
-        plt.title(r'$\lambda = {}$'.format(reg_min_result), loc = 'right')
+        plt.title(r'$\lambda = {}$'.format(reg_min), loc = 'right')
         plt.xlim((0,q-2))
         plt.ylim((-0.1,1.1))
         plt.tight_layout()
@@ -1385,6 +1388,267 @@ def discrepancy_fun(lambda_val, s, beta, beta_perp_sq, noise_norm):
     residual_sq = (np.linalg.norm(cf * beta)**2 + beta_perp_sq)
     return residual_sq - noise_norm**2
 
+def lcurve_discrete(res_norms, sol_norms, plotit=False,
+                    plot_in_color=True):
+    """
+    Select the corner of a discrete L-curve using the triangle method.
+
+    Estimates the corner of an L-curve represented by a discrete sequence
+    of regularized solutions using the triangle method of Castellanos et al.
+    [1]_. The L-curve is defined by the residual and solution norms
+
+    .. math::
+
+        \\rho_k =
+        \\left\\|\\mathbf{A}\\mathbf{x}_k - \\mathbf{b}\\right\\|_2,
+
+    and
+
+    .. math::
+
+        \\eta_k =
+        \\left\\|\\mathbf{x}_k\\right\\|_2,
+
+    where :math:`\\mathbf{x}_k` denotes the :math:`k`-th solution along the
+    discrete regularization path.
+
+    Before locating the corner, points that violate the expected monotonic
+    behavior of the L-curve are removed. The logarithms of the remaining
+    residual and solution norms are independently scaled to the interval
+    :math:`[-10, 10]`, after which the triangle method is applied.
+
+    Parameters
+    ----------
+    res_norms : ndarray, shape (npoints,)
+        Residual norms :math:`\\rho_k` along the discrete regularization path.
+    sol_norms : ndarray, shape (npoints,)
+        Solution norms :math:`\\eta_k` along the discrete regularization path.
+    plotit : bool, default=False
+        If ``True``, plot the scaled logarithmic L-curve and indicate the
+        selected corner.
+    plot_in_color : bool, default=True
+        If ``True``, use colored lines and markers in the plot. If ``False``,
+        use a grayscale representation. This parameter is only used when
+        ``plotit=True``.
+
+    Returns
+    -------
+    corner_idx : int
+        Index of the selected solution in the original discrete
+        regularization path.
+
+    Notes
+    -----
+    The function can be applied to any regularization method that produces
+    a discrete sequence of solutions and their corresponding residual and
+    solution norms. Examples include iterative regularization methods and
+    truncated singular value decomposition (TSVD).
+
+    The returned value is an array index into the supplied regularization
+    path. For example, if ``x_sol`` contains the solutions column-wise, the
+    selected solution is obtained as ``x_sol[:, corner_idx]``.
+
+    The triangle method first removes non-monotonic points from the discrete
+    L-curve. The remaining points are represented in logarithmic coordinates
+    and independently scaled to :math:`[-10, 10]`. Triangles are then formed
+    from pairs of points and the final point of the curve, and the corner is
+    selected according to their orientation and angle as described in
+    Ref. [1]_.
+
+    References
+    ----------
+    .. [1] J. L. Castellanos, S. Gómez, and V. Guerra,
+           "The triangle method for finding the corner of the L-curve,"
+           Applied Numerical Mathematics, vol. 43, pp. 359--373, 2002.
+    """
+    res_norms = np.asarray(res_norms)
+    sol_norms = np.asarray(sol_norms)
+    if res_norms.shape != sol_norms.shape:
+        raise ValueError("res_norms and sol_norms must have the same shape.")
+    # Test for non-monotonicity
+    res_mono, sol_mono, idx = _non_monotonicity_filtering(res_norms, sol_norms)
+    # log-norms
+    log_res, log_sol = np.log10(res_mono), np.log10(sol_mono)
+    # re-scale coords to [-10, 10]
+    log_res_scaled, log_sol_scaled = _log_scaling(log_res, log_sol)
+    # Find index of corner
+    corner_idx = search_corner(log_res_scaled, log_sol_scaled)
+    # Print 
+    if plotit:
+        if plot_in_color:
+            color_dict = dict(line_c = 'dodgerblue', line_o = 'r', hvline = 'r')
+        else:
+            color_dict = dict(line_c = 'grey', line_o = 'k', hvline = 'grey')
+        plt.figure(figsize = (6,3))        
+        plt.plot(log_res_scaled, log_sol_scaled, ':x', color = color_dict['line_c'],
+                 markerfacecolor = 'None')
+        plt.plot(log_res_scaled[corner_idx], log_sol_scaled[corner_idx], 
+                 ':o', color = color_dict['line_o'],
+                markerfacecolor = 'None')
+        plt.vlines(x = log_res_scaled[corner_idx], ymin=plt.ylim()[0], 
+                   ymax = log_sol_scaled[corner_idx],
+                    color=color_dict['hvline'], linestyle=':', linewidth = 0.7)
+        plt.hlines(y = log_sol_scaled[corner_idx], xmin=plt.xlim()[0], 
+                   xmax = log_res_scaled[corner_idx], 
+                   color=color_dict['hvline'], linestyle=':', linewidth = 0.7) 
+        #plt.legend()
+        plt.grid(linestyle = '--')
+        plt.xlabel(r'$\left\|\mathbf{Ax}-\mathbf{b}\right\|_2$')
+        plt.ylabel(r'$\left\|\mathbf{x}\right\|_2$')
+        plt.title(r'coner index = {}'.format(idx[corner_idx]), loc = 'right')
+        plt.xlim((-10,10))
+        plt.ylim((-10,10))
+        plt.tight_layout()
+    return idx[corner_idx]
+
+def _non_monotonicity_filtering(res_norms, sol_norms):
+    """
+    Remove non-monotonic points from a discrete L-curve.
+
+    Retains points for which the residual norm decreases and the solution
+    norm increases relative to the previously retained point.
+
+    Parameters
+    ----------
+    res_norms : ndarray, shape (npoints,)
+        Residual norms along the discrete regularization path.
+    sol_norms : ndarray, shape (npoints,)
+        Solution norms along the discrete regularization path.
+
+    Returns
+    -------
+    res_mono : ndarray
+        Residual norms of the retained points.
+    sol_mono : ndarray
+        Solution norms of the retained points.
+    idx : ndarray
+        Indices of the retained points in the original regularization path.
+    """
+    idx = [0]
+    for k in range(1, len(res_norms)):
+        i = idx[-1]
+        if (res_norms[k] < res_norms[i] and sol_norms[k] > sol_norms[i]):
+            idx.append(k)
+    idx = np.asarray(idx)
+    res_mono = res_norms[idx]
+    sol_mono = sol_norms[idx]
+    return res_mono, sol_mono, idx
+
+def _log_scaling(log_res, log_sol):
+    """
+    Scale logarithmic L-curve coordinates to [-10, 10].
+
+    The residual and solution coordinates are scaled independently using
+    a linear transformation that maps their respective minimum and maximum
+    values to -10 and 10.
+
+    Parameters
+    ----------
+    log_res : ndarray, shape (npoints,)
+        Logarithms of the residual norms.
+    log_sol : ndarray, shape (npoints,)
+        Logarithms of the solution norms.
+
+    Returns
+    -------
+    log_res_scaled : ndarray, shape (npoints,)
+        Scaled logarithmic residual norms.
+    log_sol_scaled : ndarray, shape (npoints,)
+        Scaled logarithmic solution norms.
+    """
+    log_res_scaled = -10.0 + 20.0 * (
+            (log_res - np.min(log_res)) / (np.max(log_res) - np.min(log_res)))
+    log_sol_scaled = -10.0 + 20.0 * (
+        (log_sol - np.min(log_sol)) / (np.max(log_sol) - np.min(log_sol)))
+    return log_res_scaled, log_sol_scaled
+
+def search_corner(log_res_scaled, log_sol_scaled):
+    """
+    Locate the corner of a scaled discrete L-curve.
+
+    Applies the triangle method to the scaled logarithmic residual and
+    solution norms. The final point of the curve is used as a fixed
+    endpoint, and candidate corners are identified from the orientation
+    and angle of triangles formed with preceding points [1]_.
+
+    Parameters
+    ----------
+    log_res_scaled : ndarray, shape (npoints,)
+        Scaled logarithmic residual norms.
+    log_sol_scaled : ndarray, shape (npoints,)
+        Scaled logarithmic solution norms.
+
+    Returns
+    -------
+    corner_idx : int
+        Index of the estimated corner in the filtered and scaled L-curve.
+
+    Notes
+    -----
+    Candidate triangles must have negative signed area and an interior
+    angle smaller than :math:`7\\pi/8`. Among the accepted triangles,
+    the point associated with the largest cosine of the interior angle
+    is selected as the corner.
+
+    If no triangle satisfies these conditions, the final point of the
+    curve is returned.
+
+    References
+    ----------
+    .. [1] J. L. Castellanos, S. Gómez, and V. Guerra,
+            "The triangle method for finding the corner of the L-curve,"
+            Applied Numerical Mathematics, vol. 43, pp. 359--373, 2002.
+    """
+    x = np.asarray(log_res_scaled)
+    y = np.asarray(log_sol_scaled)
+    n = len(x)
+    #angle_min = np.inf
+    cte = np.cos(7 * np.pi / 8)
+    cosmax = -2.0
+    corner_idx = n - 1 # Default to the last point if no corner is found
+    # Fixed endpoint
+    C = np.array([x[-1], y[-1]])
+    for k in range(n - 2):
+        B = np.array([x[k], y[k]])
+        for j in range(k + 1, n - 1):
+            A = np.array([x[j], y[j]])
+            area, cos_angle = _triangle_properties(A, B, C)
+            if (cos_angle > cte and cos_angle > cosmax and area < 0):
+                cosmax = cos_angle
+                corner_idx = j
+    return corner_idx
+
+def _triangle_properties(A, B, C):
+    """
+    Compute geometric properties of a triangle.
+
+    Computes the signed area of the triangle defined by the points
+    ``A``, ``B``, and ``C``, together with the cosine of the interior
+    angle at ``A``.
+
+    Parameters
+    ----------
+    A, B, C : ndarray, shape (2,)
+        Coordinates of the triangle vertices.
+
+    Returns
+    -------
+    area : float
+        Signed area of the triangle.
+    cos_angle : float
+        Cosine of the interior angle at ``A``.
+    """
+    BA = B - A
+    AC = A - C
+    # Signed area
+    area = 0.5 * (BA[0] * AC[1] - BA[1] * AC[0])
+    # Angle at A
+    cos_angle = np.dot(BA, -AC) / (
+        np.linalg.norm(BA) * np.linalg.norm(AC))
+    # Protect against round-off errors
+    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+    #angle = np.arccos(cos_angle)
+    return area, cos_angle
 
 def discrep_old(U, s, V, b, delta, x_0=None):
     """
