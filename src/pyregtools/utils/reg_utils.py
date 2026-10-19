@@ -96,7 +96,7 @@ def plot_picard(u,s,b, noise_norm = None, figsize = (5,4)):
                      color = 'Grey', 
                      label = r'$\left\|n\right\|_2/\left\|b\right\|_2 \cdot \sigma_1$')
     plt.legend(loc = 'lower left')
-    minval = np.amin([0.1*s[-1], 0.1*np.finfo(float).eps*s[0]])
+    minval = np.amax([0.1*s[-1], 0.1*np.finfo(float).eps*s[0]])
     plt.ylim((minval, 100*s[0]))
     plt.xlabel(r'$i$')
     plt.ylabel(r'$\sigma_i$, $|U^Tb|$, $|U^Tb|/\sigma_i$')
