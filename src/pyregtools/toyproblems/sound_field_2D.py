@@ -234,6 +234,35 @@ class SoundField2D:
         """
         self.coord = self.pt_array(x_len = x_len, z_len = z_len, 
                                    n_x = n_x, n_z = n_z)
+
+    def set_mic_random_array(self, x_len = 0.5, z_len = 0.5, m = 50):
+        """
+        Define a random microphone array.
+
+        Generates a random microphone array in the
+        :math:`xz` plane, centered at the origin.
+
+        Parameters
+        ----------
+        x_len : float, default=0.5
+            Array length along the :math:`x` direction, in meters.
+        z_len : float, default=0.5
+            Array length along the :math:`z` direction, in meters.
+        m : int, default=50
+            Number of microphones.
+
+        Notes
+        -----
+        The microphone coordinates are generated using a random number generator
+        with uniform distribution. The microphone coordinates are stored in ``coord``,
+        an array of shape ``(M, 2)``.
+        """
+        xlim = (-x_len/2, x_len/2)
+        zlim = (-z_len/2, z_len/2)
+        rng = np.random.default_rng(seed=0)
+        x = rng.uniform(*xlim, size=m)
+        z = rng.uniform(*zlim, size=m)
+        self.coord = np.column_stack((x, z))
     
     def get_k(self, theta_deg = 90):
         """
@@ -313,7 +342,7 @@ class SoundField2D:
             k_vec = self.get_k(theta_deg = theta)
             self.b_true += amps[jt]*np.exp(-1j*self.coord @ k_vec)
 
-    def smooth_sf(self, factor = 1):
+    def smooth_sf(self, q = 1):
         """
         Simulate a sound field with a smooth angular amplitude distribution.
 
@@ -333,7 +362,7 @@ class SoundField2D:
 
         Parameters
         ----------
-        factor : float, default=1
+        q : float, default=1
             Angular modulation factor, :math:`q`, controlling the
             number and angular spacing of the amplitude lobes.
 
@@ -347,7 +376,7 @@ class SoundField2D:
         a full revolution.
         """
         theta = 2 * np.pi * np.arange(360) / 360
-        amps = (1/len(theta))*np.sin(factor * theta)**2
+        amps = (1/len(theta))*np.sin(q * theta)**2
         self.compute_pres(theta_deg = np.rad2deg(theta), amps = amps)
             
     def add_noise(self, snr=30, seed=0):
